@@ -1,0 +1,151 @@
+# Default values for spark-operator.
+# Based on  https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/charts/spark-operator-chart/values.yaml
+options:
+  replicaCount:
+    description: |
+      Desired number of pods, leaderElection will be enabled if this is greater than 1
+    type: int
+    default: 1
+
+  port:
+    description: |
+      The port Spark will be listening on
+    type: int
+    default: 8080
+
+  imagePath:
+    type: string
+    description: |
+      The location of the default image to use,
+      e.g. "registry.example.com/spark:v1".
+    default: "gcr.io/spark-operator/spark-operator:v1beta2-1.2.0-3.0.0"
+
+  imagePullPolicy:
+    type: string
+    description: |
+      Image pull policy.
+    default: "Always"
+
+  namespace:
+    description: |
+      Set the namespace for the spark operator
+    type: string
+    default: "spark"
+
+  rbacCreate:
+    description: |
+      Create and use `rbac` resources
+    type: boolean
+    default: true
+
+  jobNamespace:
+    description: |
+      Set this if running spark jobs in a different namespace than the operator
+    type: string
+    default: "spark"
+
+  controllerThreads:
+    description: |
+      Operator concurrency, higher values might increase memory usage
+    type: int
+    default: 10
+
+  resyncInterval:
+    description: |
+      Operator resync interval. Note that the operator will respond to events 
+      (e.g. create, update) unrealted to this setting
+    type: int
+    default: 30
+
+  ingressUrlFormat:
+    description: |
+      Ingress URL format
+    type: string
+    default: ""
+
+  logLevel:
+    description: |
+      Set higher levels for more verbose logging
+    type: int
+    default: 9999
+
+  stderrThreshold:
+    description: |
+      Set the threshold logging for stderr
+    type: string
+    default: "INFO"
+
+  securityContext:
+    description: |
+      Operator container security context
+    type: string
+    default: "{}"
+
+  webhookEnable:
+    description: |
+      Enable webhook server
+    type: boolean
+    default: false
+  webhookPort:
+    description: |
+      Webhook service port
+    type: int
+    default: 8080
+  webhookNamespaceSelector:
+    description: |
+      The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
+      Empty string (default) will operate on all namespaces
+    type: string
+    default: ""
+
+  metricsEnable:
+    description: |
+      Enable prometheus metrics scraping
+    type: boolean
+    default: true
+  metricsPort:
+    description: |
+      Metrics port
+    type: int
+    default: 10254
+  metricsEndpoint:
+    description: |
+      Metrics serving endpoint
+    type: string
+    default: /metrics
+  metricsPrefix:
+    description: |
+      Metric prefix, will be added to all exported metrics
+    type: string
+    default: ""
+  metricsLabels:
+    description: |
+      Metric labels
+    type: string
+    default: "app_type"
+
+  batchScheduler:
+    description: |
+      Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
+    type: boolean
+    default: false
+
+  resourceQuotaEnforcement:
+    description: |
+      Whether to enable the ResourceQuota enforcement for SparkApplication resources.
+      Requires the webhook to be enabled by setting `webhook.enable` to true.
+      Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
+    type: boolean
+    default: false
+
+  leaderElectionLockName:
+    description: |
+      Leader election lock name.
+      Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
+    type: string
+    default: "spark-operator-lock"
+  leaderElectionLockNamespace:
+    description: |
+      Optionally store the lock in another namespace. Defaults to operator's namespace
+    type: string
+    default: ""

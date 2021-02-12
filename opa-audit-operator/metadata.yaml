@@ -1,0 +1,6 @@
+name: opa-audit-operator
+description: |
+  This charm deploys Spark.
+summary: |
+  Kubernetes Spark operator
+series: [kubernetes]
