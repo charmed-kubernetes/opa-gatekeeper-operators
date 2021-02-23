@@ -58,6 +58,7 @@ class OPAManagerCharm(CharmBase):
                     "files/configs.config.gatekeeper.sh.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
                     "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
+                    "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
                     # "files/sync.yaml",
                 ]
             ]
@@ -74,6 +75,9 @@ class OPAManagerCharm(CharmBase):
         spec = {
             "version": 3,
             "kubernetesResources": {
+                # "pod": {
+                #     "serviceAccountName": "gatekeeper-admin",
+                # },
                 "customResourceDefinitions": [
                     {
                         "name": crd["metadata"]["name"],
@@ -83,7 +87,7 @@ class OPAManagerCharm(CharmBase):
                 ],
                 "serviceAccounts": [
                     {
-                        "name": "opa",
+                        "name": "gatekeeper-admin",
                         "automountServiceAccountToken": True,
                         "roles": [
                             {
@@ -227,6 +231,7 @@ class OPAManagerCharm(CharmBase):
             },
             "containers": [
                 {
+                    "serviceAccountName": "gatekeeper-admin",
                     "envConfig": {
                         "POD_NAMESPACE": {
                                 "field":  {
@@ -255,6 +260,7 @@ class OPAManagerCharm(CharmBase):
 
                     "image": "openpolicyagent/gatekeeper:v3.2.3",
 
+
                     # "resources": {
                     #     "limits": {"cpu": "1000m", "memory": "512Mi"},
                     #     "requests": {"cpu": "100m", "memory": "256Mi"},
@@ -269,10 +275,11 @@ class OPAManagerCharm(CharmBase):
                             "runAsGroup": 999,
                             "runAsNonRoot": True,
                             "runAsUser": 1000,
-                        },
+                        }
                     }
                 },
             ],
+
 
         }
 

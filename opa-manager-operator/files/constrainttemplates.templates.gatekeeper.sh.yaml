@@ -6,6 +6,7 @@ metadata:
     controller-tools.k8s.io: "1.0"
     gatekeeper.sh/system: "yes"
   name: constrainttemplates.templates.gatekeeper.sh
+  # name: constrainttemplates
 spec:
   group: templates.gatekeeper.sh
   names:
