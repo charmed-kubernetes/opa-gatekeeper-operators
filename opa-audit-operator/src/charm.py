@@ -56,8 +56,11 @@ class OPAAuditCharm(CharmBase):
             crds = [
                 yaml.load(Path(f).read_text())
                 for f in [
-                    "files/sparkoperator.k8s.io_sparkapplications.yaml",
-                    "files/sparkoperator.k8s.io_scheduledsparkapplications.yaml",
+                    "files/configs.config.gatekeeper.sh.yaml",
+                    "files/gatekeeper-ns.yaml",
+                    "files/constrainttemplates.templates.gatekeeper.sh.yaml",
+                    "files/sync.yaml",
+                    "files/validating-webhook.yaml"
                 ]
             ]
         except yaml.YAMLError as exc:

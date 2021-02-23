@@ -18,7 +18,7 @@ options:
     description: |
       The location of the default image to use,
       e.g. "registry.example.com/spark:v1".
-    default: "gcr.io/spark-operator/spark-operator:v1beta2-1.2.0-3.0.0"
+    default: "openpolicyagent/gatekeeper:v3.2.3"
 
   imagePullPolicy:
     type: string
@@ -52,7 +52,7 @@ options:
 
   resyncInterval:
     description: |
-      Operator resync interval. Note that the operator will respond to events 
+      Operator resync interval. Note that the operator will respond to events
       (e.g. create, update) unrealted to this setting
     type: int
     default: 30
