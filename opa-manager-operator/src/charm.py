@@ -85,9 +85,8 @@ class OPAManagerCharm(CharmBase):
                     }
                     for crd in crds
                 ],
-                "serviceAccounts": [
+                "serviceAccounts":
                     {
-                        "name": "gatekeeper-admin",
                         "automountServiceAccountToken": True,
                         "roles": [
                             {
@@ -110,13 +109,8 @@ class OPAManagerCharm(CharmBase):
                                             "update",
                                             "watch",
                                         ],
-                                    },
-                                ],
-                            },
-                            {
-                                "global": True,
-                                "rules": [
-                                    {
+                                    },{
+
                                         "apiGroups": ["*"],
                                         "resources": ["*"],
                                         "verbs": ["get", "list", "watch"],
@@ -224,10 +218,9 @@ class OPAManagerCharm(CharmBase):
                                         ],
                                     },
                                 ],
-                            }
+                            },
                         ],
                     },
-                ],
             },
             "containers": [
                 {
