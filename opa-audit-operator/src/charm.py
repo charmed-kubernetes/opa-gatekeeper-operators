@@ -57,8 +57,10 @@ class OPAAuditCharm(CharmBase):
                 yaml.load(Path(f).read_text())
                 for f in [
                     "files/configs.config.gatekeeper.sh.yaml",
-                    "files/gatekeeper-ns.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
+                    "files/"
+                    "files/gatekeeper-ns.yaml",
+
                     "files/sync.yaml",
                     "files/validating-webhook.yaml"
                 ]
@@ -75,12 +77,11 @@ class OPAAuditCharm(CharmBase):
         config = self.model.config
         spec = {
             "version": 3,
-            "serviceAccounts": [
-                {
+            "serviceAccount": {
                     "automountServiceAccountToken": True,
                     "roles": [
                         {
-                            "global": True,
+                            "global": False,
                             "rules": [
                                 {
                                     "apiGroups": [""],
@@ -101,12 +102,7 @@ class OPAAuditCharm(CharmBase):
                                     ],
                                 },
                             ],
-                        }
-                    ],
-                },
-                {
-                    "automountServiceAccountToken": True,
-                    "roles": [
+                        },
                         {
                             "global": True,
                             "rules": [
@@ -219,9 +215,8 @@ class OPAAuditCharm(CharmBase):
                                 },
                             ],
                         }
-                    ],
-                },
-            ],
+                    ]
+            },
             "containers": [
                 {
                     "args": self._cli_args(),

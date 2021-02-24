@@ -231,13 +231,13 @@ class OPAManagerCharm(CharmBase):
             },
             "containers": [
                 {
-                    "serviceAccountName": "gatekeeper-admin",
+                    # "serviceAccountName": "gatekeeper-admin",
                     "envConfig": {
                         "POD_NAMESPACE": {
                                 "field":  {
                                     "path": "metadata.namespace",
                                     "api-version": "v1",
-                            }
+                                    },
                         },
                         "POD_NAME": {
                             "field": {
@@ -254,7 +254,7 @@ class OPAManagerCharm(CharmBase):
                         {"containerPort": 9090, "name": "healthz", "protocol": "TCP"},
                     ],
                     "imagePullPolicy": config["imagePullPolicy"],
-                    "name": "test",
+                    "name": self.app.name,
                     "args": self._cli_args(),
                     "command": ["/manager"],
 
@@ -279,8 +279,6 @@ class OPAManagerCharm(CharmBase):
                     }
                 },
             ],
-
-
         }
 
         # if config["securityContext"] != "" and config["securityContext"] != "{}":

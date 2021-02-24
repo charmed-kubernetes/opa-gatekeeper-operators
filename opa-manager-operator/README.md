@@ -1,48 +1,22 @@
-# spark-operator
+# Kubernetes Open Policy Agent Operator
 
-This is a prototype [charm](https://charmhub.io/about#what-is-a-charm) for [the spark operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator).
 
 ## Description
 
-Deploying this charm will result in an installation of the [the spark operator](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) container. Where possible, the same configuration options are used.
 
 ## Usage
 
-Install the charm buy building a deploying.
+TODO
+ 
 
-```sh
-python -m charmcraft build
-juju add-model spark
-juju deploy ./spark-operator.charm
-```
-
-Deploy a spark application in the usual way. For example:
-
-```sh
-kubectl -n spark apply -f examples/spark-pi.yaml
-```
-
-### Changing Namespaces
-
-The default configuration looks in the spark namespace for SparkApplications. Change this setting if you want to use another namespace.
-
-The spark application also needs a service account to run. Create this yourself, or reuse the spark-operator service account if you want full privilidges.
 
 ## Developing
 
-Create and activate a virtualenv with the development requirements:
-
-    virtualenv -p python3 venv
-    source venv/bin/activate
-    pip install -r requirements-dev.txt
+TODO 
 
 ## Testing
 
-The Python operator framework includes a very nice harness for testing
-operator behaviour without full deployment. Just `run_tests`:
-
-    ./run_tests
-
+TODO
 ## Development Environment Installation
 
 ### Prerequisites
@@ -77,33 +51,19 @@ Again, this slightly depends on how you have your system setup, as `charmcraft` 
 
 ### Add a Model, Copy the File Across, and Deploy
 
-On OSX, you'll need to copy the charm across to the VM.
-
-1. `juju add-model spark`
-1. `juju deploy ./spark-operator.charm`
+TODO
 
 ### Run a Test
 
-1. `kubectl -n spark apply -f examples/spark-pi.yaml`
-
-Note that this requires 1GB of ram to run (java!) so you will need to make sure your VM has enough RAM. By default microk8s uses 4G which is not enough.
+TODO
 
 ### Destroy an application, for redeployment
 
-1. `juju remove-application spark-operator --force --no-wait`
+TODO 
 
 ### Delete a Model
 
-1. `microk8s juju destroy-model spark`
+TODO
 
-## Potential Roadmap
 
-- Tests
-- Tidy up pod spec code and args
-- Have option to disable global role
-- Mutating websocket
-- Release to charm hub
 
-## Future
-
-- Consider re-implementing spark operator functionality? Take over responsibility of drivers and executors?
