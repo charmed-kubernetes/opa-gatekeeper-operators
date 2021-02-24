@@ -7,11 +7,36 @@ from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
+from charmhelpers.core.hookenv import (
+    log,
+    # metadata,
+    # status_set,
+    # config,
+    # network_get,
+    # relation_id,
+)
+from jinja2 import Template
+
 
 logger = logging.getLogger(__name__)
 
 
-class OPAAuditCharm(CharmBase):
+class CustomResourceDefintion(object):
+
+    def __init__(self, name, spec):
+
+        self._name = name
+        self._spec = spec
+
+    @property
+    def spec(self):
+        return self._spec
+    @property
+    def name(self):
+        return self._name
+
+
+class OPAManagerCharm(CharmBase):
     """
     A Juju Charm for Spark
     """
@@ -52,230 +77,39 @@ class OPAAuditCharm(CharmBase):
         logger.debug("Building Pod Spec")
         crds = []
         try:
-            raise NotImplementedError("TODO")
             crds = [
                 yaml.load(Path(f).read_text())
                 for f in [
                     "files/configs.config.gatekeeper.sh.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
-                    "files/"
-                    "files/gatekeeper-ns.yaml",
-
-                    "files/sync.yaml",
-                    "files/validating-webhook.yaml"
+                    "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
+                    "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
+                    # "files/sync.yaml",
                 ]
             ]
         except yaml.YAMLError as exc:
             print("Error in configuration file:", exc)
-        rules = {}
-        try:
-            rules = yaml.load(
-                open(Path("files/rbac.yaml"), "r"), Loader=yaml.FullLoader
-            )
-        except yaml.YAMLError as exc:
-            print("Error in configuration file:", exc)
+
+        crd_objects = [
+            CustomResourceDefintion(crd['metadata']['name'], crd['spec'])
+            for crd in crds
+        ]
+
         config = self.model.config
-        spec = {
-            "version": 3,
-            "serviceAccount": {
-                    "automountServiceAccountToken": True,
-                    "roles": [
-                        {
-                            "global": False,
-                            "rules": [
-                                {
-                                    "apiGroups": [""],
-                                    "resources": ["events"],
-                                    "verbs": ["create", "patch"],
-                                },
-                                {
-                                    "apiGroups": [""],
-                                    "resources": ["secrets"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                            ],
-                        },
-                        {
-                            "global": True,
-                            "rules": [
-                                {
-                                    "apiGroups": ["*"],
-                                    "resources": ["*"],
-                                    "verbs": ["get", "list", "watch"],
-                                },
-                                {
-                                    "apiGroups": ["apiextensions.k8s.io"],
-                                    "resources": ["customresourcedefinitions"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                                {
-                                    "apiGroups": ["config.gatekeeper.sh"],
-                                    "resources": ["configs"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                                {
-                                    "apiGroups": ["config.gatekeeper.sh"],
-                                    "resources": ["configs/status"],
-                                    "verbs": ["get", "patch", "update"],
-                                },
-                                {
-                                    "apiGroups": ["constraints.gatekeeper.sh"],
-                                    "resources": ["*"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                                {
-                                    "apiGroups": ["policy"],
-                                    "resourceNames": ["gatekeeper-admin"],
-                                    "resources": ["podsecuritypolicies"],
-                                    "verbs": ["use"],
-                                },
-                                {
-                                    "apiGroups": ["status.gatekeeper.sh"],
-                                    "resources": ["*"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                                {
-                                    "apiGroups": ["templates.gatekeeper.sh"],
-                                    "resources": ["constrainttemplates"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                                {
-                                    "apiGroups": ["templates.gatekeeper.sh"],
-                                    "resources": ["constrainttemplates/finalizers"],
-                                    "verbs": ["delete", "get", "patch", "update"],
-                                },
-                                {
-                                    "apiGroups": ["templates.gatekeeper.sh"],
-                                    "resources": ["constrainttemplates/status"],
-                                    "verbs": ["get", "patch", "update"],
-                                },
-                                {
-                                    "apiGroups": ["admissionregistration.k8s.io"],
-                                    "resourceNames": [
-                                        "gatekeeper-validating-webhook-configuration"
-                                    ],
-                                    "resources": ["validatingwebhookconfigurations"],
-                                    "verbs": [
-                                        "create",
-                                        "delete",
-                                        "get",
-                                        "list",
-                                        "patch",
-                                        "update",
-                                        "watch",
-                                    ],
-                                },
-                            ],
-                        }
-                    ]
-            },
-            "containers": [
-                {
-                    "args": self._cli_args(),
-                    "command": ["/manager"],
-                    "env": [
-                        {
-                            "name": "POD_NAMESPACE",
-                            "valueFrom": {
-                                "fieldRef": {
-                                    "apiVersion": "v1",
-                                    "fieldPath": "metadata.namespace",
-                                }
-                            },
-                        },
-                        {
-                            "name": "POD_NAME",
-                            "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}},
-                        },
-                    ],
-                    "image": "openpolicyagent/gatekeeper:v3.2.3",
-                    "imagePullPolicy": "Always",
-                    "livenessProbe": {"httpGet": {"path": "/healthz", "port": 9090}},
-                    "name": "manager",
-                    "ports": [
-                        {
-                            "containerPort": 8443,
-                            "name": "webhook-server",
-                            "protocol": "TCP",
-                        },
-                        {"containerPort": 8888, "name": "metrics", "protocol": "TCP"},
-                        {"containerPort": 9090, "name": "healthz", "protocol": "TCP"},
-                    ],
-                    "readinessProbe": {"httpGet": {"path": "/readyz", "port": 9090}},
-                    "resources": {
-                        "limits": {"cpu": "1000m", "memory": "512Mi"},
-                        "requests": {"cpu": "100m", "memory": "256Mi"},
-                    },
-                    "securityContext": {
-                        "allowPrivilegeEscalation": False,
-                        "capabilities": {"drop": ["all"]},
-                        "runAsGroup": 999,
-                        "runAsNonRoot": True,
-                        "runAsUser": 1000,
-                    },
-                    "volumeMounts": [
-                        {"mountPath": "/certs", "name": "cert", "readOnly": true}
-                    ],
-                }
-            ],
-            "kubernetesResources": {
-                "customResourceDefinitions": [
-                    {
-                        "name": crd["metadata"]["name"],
-                        "spec": crd["spec"],
-                    }
-                    for crd in crds
-                ],
-            },
+        spec_template = {}
+        with open("files/pod-spec.yaml.jinja2") as fh:
+            spec_template = Template(fh.read())
+
+        template_args = {
+            'crds': crd_objects,
+            'image_path': config["imagePath"],
+            'imagePullPolicy': config["imagePullPolicy"],
+            'app_name': self.app.name,
+            'audit_cli_args': self._audit_cli_args()
         }
+
+        spec = yaml.load(spec_template.render(**template_args))
+        # log(f"spec {spec}")
         # if config["securityContext"] != "" and config["securityContext"] != "{}":
         #     spec["containers"][0]["kubernetes"]["securityContext"] = config[
         #         "securityContext"
@@ -319,80 +153,33 @@ class OPAAuditCharm(CharmBase):
         #             },
         #         },
         #     ]
-
+        print(f"Pod spec: {spec}")
         return spec
 
-    def _cli_args(self):
+
+    def _audit_cli_args(self):
         """
         Construct command line arguments for Spark
         """
         config = self.model.config
 
         args = [
-            "--port=8443",
+            "--operation=audit",
+            "--operation=status",
             "--logtostderr",
-            "--exempt-namespace=gatekeeper-system",
-            "--operation=webhook",
         ]
-
-        # if config.get("metricsEnable", False):
-        #     args.extend(
-        #         [
-        #             "-enable-metrics=" + str(config["metricsEnable"]),
-        #             "-metrics-labels=" + config["metricsLabels"],
-        #             "-metrics-port=" + str(config["metricsPort"]),
-        #             "-metrics-endpoint=" + config["metricsEndpoint"],
-        #             "-metrics-prefix=" + config["metricsPrefix"],
-        #         ]
-        #     )
-
-        # if config.get("webhookEnable", False):
-        #     args.extend(
-        #         [
-        #             "-enable-webhook=" + str(config["webhookEnable"]),
-        #             "-webhook-svc-namespace=" + config["namespace"],
-        #             "-webhook-port=" + str(config["webhookPort"]),
-        #             "-webhook-svc-name="
-        #             + self.unit.name.replace("/", "-")
-        #             + "-webhook",
-        #             "-webhook-config-name="
-        #             + self.unit.name.replace("/", "-")
-        #             + "-webhook-config",
-        #             "-webhook-namespace-selector=" + config["webhookNamespaceSelector"],
-        #         ]
-        #     )
-
-        # if config.get("webhookEnable", False) and config.get(
-        #     "resourceQuotaEnforcement", False
-        # ):
-        #     args.append("-enable-resource-quota-enforcement=true")
-
-        # if config["replicaCount"] > 1:
-        #     args.extend(
-        #         [
-        #             "-leader-election=true",
-        #             "-leader-election-lock-namespace="
-        #             + (
-        #                 config["leaderElectionLockNamespace"]
-        #                 if config["leaderElectionLockNamespace"] != ""
-        #                 else config["namespace"]
-        #             ),
-        #             "-leader-election-lock-name="
-        #             + config["leaderElectionLockNamespace"],
-        #         ]
-        #     )
 
         return args
 
-    # def _spark_config(self):
-    #     """
-    #     Construct Spark configuration
-    #     """
-    #     config = self.model.config
+    def _spark_config(self):
+        """
+        Construct Spark configuration
+        """
+        config = self.model.config
 
-    #     logger.debug("Spark config : {}".format(config))
+        logger.debug("Spark config : {}".format(config))
 
-    #     return yaml.dump(config)
+        return yaml.dump(config)
 
     def _check_config(self):
         """
@@ -437,4 +224,4 @@ class OPAAuditCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(OPAAuditCharm)
+    main(OPAManagerCharm)

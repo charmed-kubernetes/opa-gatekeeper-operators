@@ -30,7 +30,7 @@ options:
     description: |
       Set the namespace for the spark operator
     type: string
-    default: "spark"
+    default: "opa"
 
   rbacCreate:
     description: |
