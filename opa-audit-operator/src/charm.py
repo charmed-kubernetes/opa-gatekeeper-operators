@@ -38,7 +38,7 @@ class CustomResourceDefintion(object):
 
 class OPAManagerCharm(CharmBase):
     """
-    A Juju Charm for Spark
+    A Juju Charm for OPA
     """
 
     _stored = StoredState()
@@ -72,7 +72,7 @@ class OPAManagerCharm(CharmBase):
 
     def _build_pod_spec(self):
         """
-        Construct a Juju pod specification for Spark
+        Construct a Juju pod specification for OPA
         """
         logger.debug("Building Pod Spec")
         crds = []
@@ -159,7 +159,7 @@ class OPAManagerCharm(CharmBase):
 
     def _audit_cli_args(self):
         """
-        Construct command line arguments for Spark
+        Construct command line arguments for OPA Audit
         """
         config = self.model.config
 
@@ -171,13 +171,13 @@ class OPAManagerCharm(CharmBase):
 
         return args
 
-    def _spark_config(self):
+    def _opa_config(self):
         """
-        Construct Spark configuration
+        Construct opa configuration
         """
         config = self.model.config
 
-        logger.debug("Spark config : {}".format(config))
+        logger.debug("opa config : {}".format(config))
 
         return yaml.dump(config)
 
@@ -197,7 +197,7 @@ class OPAManagerCharm(CharmBase):
 
     def _configure_pod(self):
         """
-        Setup a new Spark pod specification
+        Setup a new opa pod specification
         """
         logger.debug("Configuring Pod")
         missing_config = self._check_config()

@@ -1,16 +1,28 @@
 version: 3
 kubernetesResources:
+  services:
+    - name: gatekeeper-webhook-service
+      labels:
+        gatekeeper.sh/system: "yes"
+      spec:
+        ports:
+        - port: 443
+          targetPort: 8443
+        selector:
+          control-plane: controller-manager
+          gatekeeper.sh/operation: webhook
+          gatekeeper.sh/system: "yes"
+  pod:
+    labels:
+      control-plane: controller-manager
+      gatekeeper.sh/operation: webhook
+      gatekeeper.sh/system: "yes"
   customResourceDefinitions:
     {% for crd in crds %}
     - name: {{crd.name}}
       spec:
         {{crd.spec|indent(8)}}
     {% endfor %}
-  customResources:
-  {% for cr in crs %}
-    podsecuritypolicies:
-      - {{ cr.spec|indent(8) }}
-  {% endfor %}
   validatingWebhookConfigurations:
   - name: gatekeeper-validating-webhook-configuration
     labels:
@@ -22,7 +34,7 @@ kubernetesResources:
             caBundle: Cg==
             service:
               name: gatekeeper-webhook-service
-              namespace: gatekeeper-system
+              namespace: {{ namespace }}
               path: /v1/admit
         failurePolicy: Ignore
         name: validation.gatekeeper.sh
@@ -48,7 +60,7 @@ kubernetesResources:
           caBundle: Cg==
           service:
             name: gatekeeper-webhook-service
-            namespace: gatekeeper-system
+            namespace: {{ namespace }}
             path: /v1/admitlabel
         failurePolicy: Fail
         name: check-ignore-label.gatekeeper.sh
@@ -213,7 +225,49 @@ serviceAccount:
             - patch
             - update
             - watch
+
 containers:
+  # - envConfig:
+  #     POD_NAMESPACE:
+  #       field:
+  #         path: metadata.namespace
+  #         api-version: v1
+  #     POD_NAME:
+  #       field:
+  #         path: metadata.name
+  #         api-version: v1
+  #   imageDetails:
+  #     imagePath: {{ image_path }}
+  #   ports:
+  #     - containerPort: 8889
+  #       name: audit-metrics
+  #       protocol: TCP
+  #     - containerPort: 9091
+  #       name: audit-healthz
+  #       protocol: TCP
+  #   imagePullPolicy: {{ imagePullPolicy }}
+  #   name: {{ app_name }}-audit
+  #   args: {{ audit_cli_args }}
+  #   command:
+  #     - /manager
+  #   image: 'openpolicyagent/gatekeeper:v3.2.3'
+  #   kubernetes:
+  #     livenessProbe:
+  #       httpGet:
+  #         path: /healthz
+  #         port: 9091
+  #     readinessProbe:
+  #       httpGet:
+  #         path: /readyz
+  #         port: 9091
+  #     securityContext:
+  #       allowPrivilegeEscalation: false
+  #       capabilities:
+  #         drop:
+  #           - all
+  #       runAsGroup: 999
+  #       runAsNonRoot: true
+  #       runAsUser: 1000
   - envConfig:
       POD_NAMESPACE:
         field:

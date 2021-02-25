@@ -1,0 +1,11 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDenyAllRootPod
+metadata:
+  name: pods-must-run-non-root
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["pod"]
+  parameters:
+    error: ["Pods must run as non-root"]

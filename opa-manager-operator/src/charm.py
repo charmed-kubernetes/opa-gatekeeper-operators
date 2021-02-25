@@ -38,7 +38,7 @@ class CustomResourceDefintion(object):
 
 class OPAManagerCharm(CharmBase):
     """
-    A Juju Charm for Spark
+    A Juju Charm for OPA
     """
 
     _stored = StoredState()
@@ -84,7 +84,7 @@ class OPAManagerCharm(CharmBase):
 
     def _build_pod_spec(self):
         """
-        Construct a Juju pod specification for Spark
+        Construct a Juju pod specification for OPA
         """
         logger.debug("Building Pod Spec")
 
@@ -121,7 +121,9 @@ class OPAManagerCharm(CharmBase):
             'imagePullPolicy': config["imagePullPolicy"],
             'app_name': self.app.name,
             'cli_args': self._cli_args(),
-            'crs': crs
+            'audit_cli_args': self._audit_cli_args(),
+            'crs': crs,
+            'namespace': config['namespace']
         }
         template = spec_template.render(**template_args)
         log(f"Template: {template}")
@@ -166,7 +168,7 @@ class OPAManagerCharm(CharmBase):
         #             "name": "webhook-certs",
         #             "mountPath": "/etc/webhook-certs",
         #             "secret": {
-        #                 "name": "spark-webhook-certs",
+        #                 "name": "",
         #             },
         #         },
         #     ]
@@ -175,7 +177,7 @@ class OPAManagerCharm(CharmBase):
 
     def _cli_args(self):
         """
-        Construct command line arguments for Spark
+        Construct command line arguments for OPA
         """
         config = self.model.config
 
@@ -240,7 +242,7 @@ class OPAManagerCharm(CharmBase):
 
     def _audit_cli_args(self):
         """
-        Construct command line arguments for Spark
+        Construct command line arguments for OPA
         """
         config = self.model.config
 
@@ -252,15 +254,6 @@ class OPAManagerCharm(CharmBase):
 
         return args
 
-    def _spark_config(self):
-        """
-        Construct Spark configuration
-        """
-        config = self.model.config
-
-        logger.debug("Spark config : {}".format(config))
-
-        return yaml.dump(config)
 
     def _check_config(self):
         """
@@ -278,7 +271,7 @@ class OPAManagerCharm(CharmBase):
 
     def _configure_pod(self):
         """
-        Setup a new Spark pod specification
+        Setup a new OPA pod specification
         """
         logger.debug("Configuring Pod")
         missing_config = self._check_config()

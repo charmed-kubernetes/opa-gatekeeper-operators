@@ -1,5 +1,4 @@
-# Default values for spark-operator.
-# Based on  https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/charts/spark-operator-chart/values.yaml
+# Default values for opa-operator.
 options:
   replicaCount:
     description: |
@@ -7,17 +6,11 @@ options:
     type: int
     default: 1
 
-  port:
-    description: |
-      The port Spark will be listening on
-    type: int
-    default: 8080
-
   imagePath:
     type: string
     description: |
       The location of the default image to use,
-      e.g. "registry.example.com/spark:v1".
+      e.g. "openpolicyagent/gatekeeper:v3.2.3".
     default: "openpolicyagent/gatekeeper:v3.2.3"
 
   imagePullPolicy:
@@ -28,7 +21,7 @@ options:
 
   namespace:
     description: |
-      Set the namespace for the spark operator
+      Set the namespace for the opa operator
     type: string
     default: "opa"
 
@@ -38,11 +31,6 @@ options:
     type: boolean
     default: true
 
-  jobNamespace:
-    description: |
-      Set this if running spark jobs in a different namespace than the operator
-    type: string
-    default: "spark"
 
   controllerThreads:
     description: |
@@ -123,29 +111,3 @@ options:
       Metric labels
     type: string
     default: "app_type"
-
-  batchScheduler:
-    description: |
-      Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
-    type: boolean
-    default: false
-
-  resourceQuotaEnforcement:
-    description: |
-      Whether to enable the ResourceQuota enforcement for SparkApplication resources.
-      Requires the webhook to be enabled by setting `webhook.enable` to true.
-      Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
-    type: boolean
-    default: false
-
-  leaderElectionLockName:
-    description: |
-      Leader election lock name.
-      Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
-    type: string
-    default: "spark-operator-lock"
-  leaderElectionLockNamespace:
-    description: |
-      Optionally store the lock in another namespace. Defaults to operator's namespace
-    type: string
-    default: ""

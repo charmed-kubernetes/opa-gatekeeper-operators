@@ -164,7 +164,7 @@ containers:
         protocol: TCP
       - containerPort: 9090
         name: healthz
-          protocol: TCP
+        protocol: TCP
     imagePullPolicy: {{ imagePullPolicy }}
     name: {{ app_name }}-audit
     args: {{ audit_cli_args }}
