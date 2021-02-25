@@ -70,32 +70,47 @@ class OPAManagerCharm(CharmBase):
     def _on_update_status(self, event):
         logger.info("Status updated")
 
+    def _load_yaml_objects(self, files_list):
+        yaml_objects = []
+        try:
+            yaml_objects = [
+                yaml.load(Path(f).read_text())
+                for f in files_list
+            ]
+        except yaml.YAMLError as exc:
+            print("Error in configuration file:", exc)
+
+        return yaml_objects
+
     def _build_pod_spec(self):
         """
         Construct a Juju pod specification for Spark
         """
         logger.debug("Building Pod Spec")
-        crds = []
-        try:
-            crds = [
-                yaml.load(Path(f).read_text())
-                for f in [
+
+        # Load Custom Resource Definitions
+        crd_objects = [
+            CustomResourceDefintion(crd['metadata']['name'], yaml.dump(crd['spec']))
+            for crd in self._load_yaml_objects([
                     "files/configs.config.gatekeeper.sh.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
                     "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
                     "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
                     # "files/sync.yaml",
-                ]
-            ]
-        except yaml.YAMLError as exc:
-            print("Error in configuration file:", exc)
-
-        crd_objects = [
-            CustomResourceDefintion(crd['metadata']['name'], crd['spec'])
-            for crd in crds
+            ])
         ]
 
+        # Load custom resources
+        crs = [
+            CustomResourceDefintion(cr['metadata']['name'], yaml.dump(cr))
+            for cr in self._load_yaml_objects([
+                "files/psp.yaml"
+            ])
+        ]
+
+
         config = self.model.config
+
         spec_template = {}
         with open("files/pod-spec.yaml.jinja2") as fh:
             spec_template = Template(fh.read())
@@ -105,10 +120,12 @@ class OPAManagerCharm(CharmBase):
             'image_path': config["imagePath"],
             'imagePullPolicy': config["imagePullPolicy"],
             'app_name': self.app.name,
-            'cli_args': self._cli_args()
+            'cli_args': self._cli_args(),
+            'crs': crs
         }
-
-        spec = yaml.load(spec_template.render(**template_args))
+        template = spec_template.render(**template_args)
+        log(f"Template: {template}")
+        spec = yaml.load(template)
         # log(f"spec {spec}")
         # if config["securityContext"] != "" and config["securityContext"] != "{}":
         #     spec["containers"][0]["kubernetes"]["securityContext"] = config[
