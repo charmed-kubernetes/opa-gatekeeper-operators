@@ -7,12 +7,12 @@
 ## Usage
 
 TODO
- 
+
 
 
 ## Developing
 
-TODO 
+TODO
 
 ## Testing
 
@@ -21,7 +21,6 @@ TODO
 
 ### Prerequisites
 
-Note that the spark jobs typically set limits and need a CPU and a gig of ram. So we need to increase the default VM size.
 
 1. [Install `microk8s`](https://microk8s.io/)
 1. [Install `charmcraft`](https://github.com/canonical/charmcraft)
@@ -39,7 +38,7 @@ Next, you need to install the juju OLM. But if you're using microk8s on OSX then
 Note that you may need to unregister a controller if you've killed your VM. You can do this with: `juju unregister -y mycluster-localhost`
 
 ### Edit the Model Configuration
-You can set the configuration of the Spark model by editing the file `config.yaml`.
+You can set the configuration of the OPA model by editing the file `config.yaml`.
 
 1. `vim config.yaml`
 
@@ -59,11 +58,8 @@ TODO
 
 ### Destroy an application, for redeployment
 
-TODO 
+TODO
 
 ### Delete a Model
 
 TODO
-
-
-

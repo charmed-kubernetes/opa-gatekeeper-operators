@@ -149,7 +149,7 @@ class OPAManagerCharm(CharmBase):
         #             "name": "webhook-certs",
         #             "mountPath": "/etc/webhook-certs",
         #             "secret": {
-        #                 "name": "spark-webhook-certs",
+        #                 "name": "
         #             },
         #         },
         #     ]

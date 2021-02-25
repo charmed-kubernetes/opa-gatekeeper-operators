@@ -1,6 +1,6 @@
 name: opa-manager-operator
 description: |
-  This charm deploys Spark.
+  This charm deploys OPA.
 summary: |
-  Kubernetes Spark operator
+  Kubernetes OPA operator
 series: [kubernetes]
