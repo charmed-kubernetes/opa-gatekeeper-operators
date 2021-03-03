@@ -1,4 +1,4 @@
-name: opa-manager-operator
+name: gatekeeper-manager
 description: |
   This charm deploys OPA.
 summary: |

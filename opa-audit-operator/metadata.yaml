@@ -1,4 +1,4 @@
-name: opa-audit-operator
+name: gatekeeper-audit
 description: |
   This charm deploys opa.
 summary: |

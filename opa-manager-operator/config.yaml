@@ -23,7 +23,7 @@ options:
     description: |
       Set the namespace for the opa operator
     type: string
-    default: "opa"
+    default: "gatekeeper"
 
   rbacCreate:
     description: |

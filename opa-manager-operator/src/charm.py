@@ -2,11 +2,14 @@
 
 import logging
 import yaml
+import utils
 from pathlib import Path
 from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
+
+
 from charmhelpers.core.hookenv import (
     log,
     # metadata,
@@ -49,6 +52,7 @@ class OPAManagerCharm(CharmBase):
         self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.install, self._on_install)
+        self.framework.observe(self.on.start, self._on_start)
         self._stored.set_default(things=[])
 
     def _on_config_changed(self, _):
@@ -64,12 +68,6 @@ class OPAManagerCharm(CharmBase):
         self.unit.status = MaintenanceStatus("Pod is terminating.")
         logger.info("Pod is terminating.")
 
-    def _on_install(self, event):
-        logger.info("Congratulations, the charm was properly installed!")
-
-    def _on_update_status(self, event):
-        logger.info("Status updated")
-
     def _load_yaml_objects(self, files_list):
         yaml_objects = []
         try:
@@ -81,6 +79,12 @@ class OPAManagerCharm(CharmBase):
             print("Error in configuration file:", exc)
 
         return yaml_objects
+
+    def _on_install(self, event):
+        logger.info("Congratulations, the charm was properly installed!")
+
+    def _on_update_status(self, event):
+        logger.info("Status updated")
 
     def _build_pod_spec(self):
         """
@@ -108,12 +112,7 @@ class OPAManagerCharm(CharmBase):
             ])
         ]
 
-
         config = self.model.config
-
-        spec_template = {}
-        with open("files/pod-spec.yaml.jinja2") as fh:
-            spec_template = Template(fh.read())
 
         template_args = {
             'crds': crd_objects,
@@ -125,7 +124,9 @@ class OPAManagerCharm(CharmBase):
             'crs': crs,
             'namespace': config['namespace']
         }
-        template = spec_template.render(**template_args)
+
+        template = self._render_jinja_template("files/pod-spec.yaml.jinja2", template_args)
+
         log(f"Template: {template}")
         spec = yaml.load(template)
         # log(f"spec {spec}")
@@ -191,52 +192,7 @@ class OPAManagerCharm(CharmBase):
             "--operation=webhook",
         ]
 
-        # if config.get("metricsEnable", False):
-        #     args.extend(
-        #         [
-        #             "-enable-metrics=" + str(config["metricsEnable"]),
-        #             "-metrics-labels=" + config["metricsLabels"],
-        #             "-metrics-port=" + str(config["metricsPort"]),
-        #             "-metrics-endpoint=" + config["metricsEndpoint"],
-        #             "-metrics-prefix=" + config["metricsPrefix"],
-        #         ]
-        #     )
 
-        # if config.get("webhookEnable", False):
-        #     args.extend(
-        #         [
-        #             "-enable-webhook=" + str(config["webhookEnable"]),
-        #             "-webhook-svc-namespace=" + config["namespace"],
-        #             "-webhook-port=" + str(config["webhookPort"]),
-        #             "-webhook-svc-name="
-        #             + self.unit.name.replace("/", "-")
-        #             + "-webhook",
-        #             "-webhook-config-name="
-        #             + self.unit.name.replace("/", "-")
-        #             + "-webhook-config",
-        #             "-webhook-namespace-selector=" + config["webhookNamespaceSelector"],
-        #         ]
-        #     )
-
-        # if config.get("webhookEnable", False) and config.get(
-        #     "resourceQuotaEnforcement", False
-        # ):
-        #     args.append("-enable-resource-quota-enforcement=true")
-
-        # if config["replicaCount"] > 1:
-        #     args.extend(
-        #         [
-        #             "-leader-election=true",
-        #             "-leader-election-lock-namespace="
-        #             + (
-        #                 config["leaderElectionLockNamespace"]
-        #                 if config["leaderElectionLockNamespace"] != ""
-        #                 else config["namespace"]
-        #             ),
-        #             "-leader-election-lock-name="
-        #             + config["leaderElectionLockNamespace"],
-        #         ]
-        #     )
 
         return args
 
@@ -269,11 +225,36 @@ class OPAManagerCharm(CharmBase):
 
         return missing
 
+    def _render_jinja_template(self, template, ctx):
+        spec_template = {}
+        with open(template) as fh:
+            spec_template = Template(fh.read())
+
+        return spec_template.render(**ctx)
+
+    def _on_start(self, event):
+        config = self.model.config
+        k8s_objects = self._load_yaml_objects([
+            'files/psp.yaml'
+        ])
+        k8s_objects.append(
+            yaml.load(
+                self._render_jinja_template(
+                    'files/sync.yaml.jinja2',
+                    {'namespace': config['namespace']}
+                )
+            )
+        )
+
+        for k8s_object in k8s_objects:
+            utils.create_k8s_object(config['namespace'], k8s_object)
+
     def _configure_pod(self):
         """
         Setup a new OPA pod specification
         """
         logger.debug("Configuring Pod")
+
         missing_config = self._check_config()
         if missing_config:
             logger.error(
