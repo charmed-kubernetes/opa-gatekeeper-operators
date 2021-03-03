@@ -2,26 +2,17 @@ group: config.gatekeeper.sh
 version: v1alpha1
 plural: configs
 namespace: {{namespace}}
-body: >
-  {
-    "kind": "Config",
-    "metadata": {
-      "name": "config"
-    },
-    "spec": {
-      "sync": {
-        "syncOnly": [
-          {
-            "group": "",
-            "version": "v1",
-            "kind": "Namespace"
-          },
-          {
-            "group": "",
-            "version": "v1",
-            "kind": "Pod"
-          }
-        ]
-      }
-    }
-  }
+body:
+  apiVersion: config.gatekeeper.sh/v1alpha1
+  kind: Config
+  metadata:
+    name: config
+  spec:
+    sync:
+      syncOnly:
+      - group: ''
+        version: v1
+        kind: Namespace
+      - group: ''
+        version: v1
+        kind: Pod

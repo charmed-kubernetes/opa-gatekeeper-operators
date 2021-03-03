@@ -245,9 +245,11 @@ class OPAManagerCharm(CharmBase):
                 )
             )
         )
-
+        log(f"K8s objects: {k8s_objects}")
         for k8s_object in k8s_objects:
             utils.create_k8s_object(config['namespace'], k8s_object)
+
+
 
     def _configure_pod(self):
         """

@@ -122,7 +122,7 @@ VALID_ACTIONS = [
 def try_crd(ns, obj, action):
     try:
         crud_crd_object(ns, obj, action)
-    except Exception:
+    except TypeError:
         crud_custom_object(ns, obj, action)
 
 
