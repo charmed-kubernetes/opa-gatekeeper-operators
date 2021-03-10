@@ -34,12 +34,18 @@ $ juju deploy gatekeeper-manager --channel=beta
 ### Post deployment steps
 
 ```
-$ kubectl apply -f yaml/sync.yaml
-$ kubectl apply -f yaml/template-constraint.yaml
-$ CA_CERT=$(kubectl get secrets -n opa gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
+$ kubectl apply -f docs/gatekeeper-rb.yaml
+$ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 
-$ kubectl patch validatingWebhookConfigurations opa-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/0/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
-$ kubectl patch validatingWebhookConfigurations opa-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/1/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
+$ kubectl patch validatingWebhookConfigurations gatekeeper-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/0/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
+$ kubectl patch validatingWebhookConfigursations gatekeeper-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/1/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
 
+```
+
+### Applying policies
+
+```
+$ kubectl apply -f docs/policy-example.yaml
+$ kubectl apply -f docs/policy-spec-example.yaml
 
 ```

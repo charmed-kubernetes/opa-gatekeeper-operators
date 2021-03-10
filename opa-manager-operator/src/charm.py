@@ -250,7 +250,6 @@ class OPAManagerCharm(CharmBase):
             utils.create_k8s_object(config['namespace'], k8s_object)
 
 
-
     def _configure_pod(self):
         """
         Setup a new OPA pod specification
