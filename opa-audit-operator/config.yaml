@@ -19,11 +19,6 @@ options:
       Image pull policy.
     default: "Always"
 
-  namespace:
-    description: |
-      Set the namespace for the opa operator
-    type: string
-    default: "opa"
 
   rbacCreate:
     description: |

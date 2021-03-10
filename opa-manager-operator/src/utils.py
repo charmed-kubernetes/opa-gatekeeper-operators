@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 
 
 
-
 def crud_pod_security_policy_with_api(namespace, psp, action):
     """Create pod security policy."""
     # Using the API because of LP:1886694

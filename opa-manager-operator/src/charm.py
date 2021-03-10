@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import os
 import logging
 import yaml
 import utils
@@ -12,11 +12,6 @@ from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
 
 from charmhelpers.core.hookenv import (
     log,
-    # metadata,
-    # status_set,
-    # config,
-    # network_get,
-    # relation_id,
 )
 from jinja2 import Template
 
@@ -100,7 +95,6 @@ class OPAManagerCharm(CharmBase):
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
                     "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
                     "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
-                    # "files/sync.yaml",
             ])
         ]
 
@@ -122,58 +116,12 @@ class OPAManagerCharm(CharmBase):
             'cli_args': self._cli_args(),
             'audit_cli_args': self._audit_cli_args(),
             'crs': crs,
-            'namespace': config['namespace']
+            'namespace': os.environ['JUJU_MODEL_NAME']
         }
 
         template = self._render_jinja_template("files/pod-spec.yaml.jinja2", template_args)
 
-        log(f"Template: {template}")
         spec = yaml.load(template)
-        # log(f"spec {spec}")
-        # if config["securityContext"] != "" and config["securityContext"] != "{}":
-        #     spec["containers"][0]["kubernetes"]["securityContext"] = config[
-        #         "securityContext"
-        #     ]
-
-        # if config.get("metricsEnable", False):
-        #     spec["containers"][0]["ports"].append(
-        #         {
-        #             "containerPort": config["metricsPort"],
-        #             "name": "metrics",
-        #         }
-        #     )
-        #     spec["containers"][0]["kubernetes"]["readinessProbe"] = {
-        #         "failureThreshold": 30,
-        #         "tcpSocket": {
-        #             "port": config["metricsPort"],
-        #         },
-        #         "initialDelaySeconds": 1,
-        #         "periodSeconds": 2,
-        #         "successThreshold": 1,
-        #         "timeoutSeconds": 30,
-        #     }
-        #     spec["containers"][0]["kubernetes"]["livenessProbe"] = {
-        #         "failureThreshold": 30,
-        #         "tcpSocket": {
-        #             "port": config["metricsPort"],
-        #         },
-        #         "initialDelaySeconds": 15,
-        #         "periodSeconds": 20,
-        #         "successThreshold": 1,
-        #         "timeoutSeconds": 30,
-        #     }
-
-        # if config.get("webhookEnable", False):
-        #     spec["containers"][0]["volumeConfig"] = [
-        #         {
-        #             "name": "webhook-certs",
-        #             "mountPath": "/etc/webhook-certs",
-        #             "secret": {
-        #                 "name": "",
-        #             },
-        #         },
-        #     ]
-        print(f"Pod spec: {spec}")
         return spec
 
     def _cli_args(self):
@@ -188,12 +136,9 @@ class OPAManagerCharm(CharmBase):
             "--logtostderr",
             "--port=8443",
             "--logtostderr",
-            f"--exempt-namespace={config['namespace']}",
+            f"--exempt-namespace={os.environ['JUJU_MODEL_NAME']}",
             "--operation=webhook",
         ]
-
-
-
         return args
 
     def _audit_cli_args(self):
@@ -209,7 +154,6 @@ class OPAManagerCharm(CharmBase):
         ]
 
         return args
-
 
     def _check_config(self):
         """
@@ -241,14 +185,13 @@ class OPAManagerCharm(CharmBase):
             yaml.load(
                 self._render_jinja_template(
                     'files/sync.yaml.jinja2',
-                    {'namespace': config['namespace']}
+                    {'namespace': os.environ['JUJU_MODEL_NAME']}
                 )
             )
         )
         log(f"K8s objects: {k8s_objects}")
         for k8s_object in k8s_objects:
-            utils.create_k8s_object(config['namespace'], k8s_object)
-
+            utils.create_k8s_object(os.environ['JUJU_MODEL_NAME'], k8s_object)
 
     def _configure_pod(self):
         """

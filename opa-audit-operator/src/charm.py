@@ -105,54 +105,12 @@ class OPAManagerCharm(CharmBase):
             'image_path': config["imagePath"],
             'imagePullPolicy': config["imagePullPolicy"],
             'app_name': self.app.name,
-            'audit_cli_args': self._audit_cli_args()
+            'audit_cli_args': self._audit_cli_args(),
+            'namespace': os.environ['JUJU_MODEL_NAME']
         }
 
         spec = yaml.load(spec_template.render(**template_args))
-        # log(f"spec {spec}")
-        # if config["securityContext"] != "" and config["securityContext"] != "{}":
-        #     spec["containers"][0]["kubernetes"]["securityContext"] = config[
-        #         "securityContext"
-        #     ]
 
-        # if config.get("metricsEnable", False):
-        #     spec["containers"][0]["ports"].append(
-        #         {
-        #             "containerPort": config["metricsPort"],
-        #             "name": "metrics",
-        #         }
-        #     )
-        #     spec["containers"][0]["kubernetes"]["readinessProbe"] = {
-        #         "failureThreshold": 30,
-        #         "tcpSocket": {
-        #             "port": config["metricsPort"],
-        #         },
-        #         "initialDelaySeconds": 1,
-        #         "periodSeconds": 2,
-        #         "successThreshold": 1,
-        #         "timeoutSeconds": 30,
-        #     }
-        #     spec["containers"][0]["kubernetes"]["livenessProbe"] = {
-        #         "failureThreshold": 30,
-        #         "tcpSocket": {
-        #             "port": config["metricsPort"],
-        #         },
-        #         "initialDelaySeconds": 15,
-        #         "periodSeconds": 20,
-        #         "successThreshold": 1,
-        #         "timeoutSeconds": 30,
-        #     }
-
-        # if config.get("webhookEnable", False):
-        #     spec["containers"][0]["volumeConfig"] = [
-        #         {
-        #             "name": "webhook-certs",
-        #             "mountPath": "/etc/webhook-certs",
-        #             "secret": {
-        #                 "name": "
-        #             },
-        #         },
-        #     ]
         print(f"Pod spec: {spec}")
         return spec
 

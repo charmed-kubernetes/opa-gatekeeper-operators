@@ -19,12 +19,6 @@ options:
       Image pull policy.
     default: "Always"
 
-  namespace:
-    description: |
-      Set the namespace for the opa operator
-    type: string
-    default: "gatekeeper"
-
   rbacCreate:
     description: |
       Create and use `rbac` resources
