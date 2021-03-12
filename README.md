@@ -19,8 +19,11 @@ $ juju bootstrap ${K8S_NAME}-cloud ${K8S_NAME}
 
 ### Add Model
 
+```
+$ NAMESPACE=gatekeeper
+$ juju add-model ${NAMESPACE}
 
-`$ juju add-model gatekeeper`
+```
 
 
 ###  Deploy
@@ -37,8 +40,9 @@ $ juju deploy gatekeeper-manager --channel=beta
 $ kubectl apply -f docs/gatekeeper-rb.yaml
 $ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 
-$ kubectl patch validatingWebhookConfigurations gatekeeper-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/0/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
-$ kubectl patch validatingWebhookConfigursations gatekeeper-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/1/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'
+$ CA_CERT=$(kubectl get secrets -n ${NAMESPACE} gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
+$ for i in {0..1}; do kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
+$ kubectl apply -f docs/gatekeeper-rb.yaml
 
 ```
 
