@@ -36,7 +36,7 @@ class CustomResourceDefintion(object):
         return self._name
 
 
-class OPAManagerCharm(CharmBase):
+class OPAAuditCharm(CharmBase):
     """
     A Juju Charm for OPA
     """
@@ -182,4 +182,4 @@ class OPAManagerCharm(CharmBase):
 
 
 if __name__ == "__main__":
-    main(OPAManagerCharm)
+    main(OPAAuditCharm)
