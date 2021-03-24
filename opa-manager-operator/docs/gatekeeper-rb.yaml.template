@@ -34,7 +34,7 @@ subjects:
   # change namespace name according to your environment
   namespace: metallb-system
 - kind: User
-  name: system:serviceaccount:test-charm-kvfn:kubernetes-operator
+  name: {{service_account_user}}
   # change namespace name according to your environment
   namespace: metallb-system
 roleRef:

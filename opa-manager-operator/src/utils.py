@@ -38,7 +38,7 @@ def crud_pod_security_policy_with_api(namespace, psp, action):
 
 
 def crud_custom_object(namespace, obj, action):
-    """Create pod security policy."""
+    """Create custom object using the k8s generic API"""
     # Using the API because of LP:1886694
     logging.info("Creating CRD object with K8s API")
     _load_kube_config()
@@ -58,7 +58,7 @@ def crud_custom_object(namespace, obj, action):
 
 
 def crud_crd_object(namespace, obj, action):
-    """Create pod security policy."""
+    """Create Custom Resource Definitino object"""
     # Using the API because of LP:1886694
     logging.info("Creating CRD object with K8s API")
     _load_kube_config()
