@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 
 
 class CustomResourceDefintion(object):
-
     def __init__(self, name, spec):
 
         self._name = name
@@ -29,6 +28,7 @@ class CustomResourceDefintion(object):
     @property
     def spec(self):
         return self._spec
+
     @property
     def name(self):
         return self._name
@@ -66,10 +66,7 @@ class OPAManagerCharm(CharmBase):
     def _load_yaml_objects(self, files_list):
         yaml_objects = []
         try:
-            yaml_objects = [
-                yaml.load(Path(f).read_text())
-                for f in files_list
-            ]
+            yaml_objects = [yaml.load(Path(f).read_text()) for f in files_list]
         except yaml.YAMLError as exc:
             print("Error in configuration file:", exc)
 
@@ -89,37 +86,39 @@ class OPAManagerCharm(CharmBase):
 
         # Load Custom Resource Definitions
         crd_objects = [
-            CustomResourceDefintion(crd['metadata']['name'], yaml.dump(crd['spec']))
-            for crd in self._load_yaml_objects([
+            CustomResourceDefintion(crd["metadata"]["name"], yaml.dump(crd["spec"]))
+            for crd in self._load_yaml_objects(
+                [
                     "files/configs.config.gatekeeper.sh.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
                     "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
                     "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
-            ])
+                ]
+            )
         ]
 
         # Load custom resources
         crs = [
-            CustomResourceDefintion(cr['metadata']['name'], yaml.dump(cr))
-            for cr in self._load_yaml_objects([
-                "files/psp.yaml"
-            ])
+            CustomResourceDefintion(cr["metadata"]["name"], yaml.dump(cr))
+            for cr in self._load_yaml_objects(["files/psp.yaml"])
         ]
 
         config = self.model.config
 
         template_args = {
-            'crds': crd_objects,
-            'image_path': config["imagePath"],
-            'imagePullPolicy': config["imagePullPolicy"],
-            'app_name': self.app.name,
-            'cli_args': self._cli_args(),
-            'audit_cli_args': self._audit_cli_args(),
-            'crs': crs,
-            'namespace': os.environ['JUJU_MODEL_NAME']
+            "crds": crd_objects,
+            "image_path": config["imagePath"],
+            "imagePullPolicy": config["imagePullPolicy"],
+            "app_name": self.app.name,
+            "cli_args": self._cli_args(),
+            "audit_cli_args": self._audit_cli_args(),
+            "crs": crs,
+            "namespace": os.environ["JUJU_MODEL_NAME"],
         }
 
-        template = self._render_jinja_template("files/pod-spec.yaml.jinja2", template_args)
+        template = self._render_jinja_template(
+            "files/pod-spec.yaml.jinja2", template_args
+        )
 
         spec = yaml.load(template)
         return spec
@@ -128,7 +127,6 @@ class OPAManagerCharm(CharmBase):
         """
         Construct command line arguments for OPA
         """
-        config = self.model.config
 
         args = [
             "--operation=audit",
@@ -145,7 +143,6 @@ class OPAManagerCharm(CharmBase):
         """
         Construct command line arguments for OPA
         """
-        config = self.model.config
 
         args = [
             "--operation=audit",
@@ -177,21 +174,18 @@ class OPAManagerCharm(CharmBase):
         return spec_template.render(**ctx)
 
     def _on_start(self, event):
-        config = self.model.config
-        k8s_objects = self._load_yaml_objects([
-            'files/psp.yaml'
-        ])
+        k8s_objects = self._load_yaml_objects(["files/psp.yaml"])
         k8s_objects.append(
             yaml.load(
                 self._render_jinja_template(
-                    'files/sync.yaml.jinja2',
-                    {'namespace': os.environ['JUJU_MODEL_NAME']}
+                    "files/sync.yaml.jinja2",
+                    {"namespace": os.environ["JUJU_MODEL_NAME"]},
                 )
             )
         )
         log(f"K8s objects: {k8s_objects}")
         for k8s_object in k8s_objects:
-            utils.create_k8s_object(os.environ['JUJU_MODEL_NAME'], k8s_object)
+            utils.create_k8s_object(os.environ["JUJU_MODEL_NAME"], k8s_object)
 
     def _configure_pod(self):
         """

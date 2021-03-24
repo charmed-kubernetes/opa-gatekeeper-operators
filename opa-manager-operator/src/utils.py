@@ -4,21 +4,17 @@ import logging
 import os
 import random
 import string
-import yaml
-
-
-from kubernetes import client, config, utils
+from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 
 
 logger = logging.getLogger(__name__)
 
 
-
 def crud_pod_security_policy_with_api(namespace, psp, action):
     """Create pod security policy."""
     # Using the API because of LP:1886694
-    logging.info('Creating pod security policy with K8s API')
+    logging.info("Creating pod security policy with K8s API")
     _load_kube_config()
 
     body = client.ExtensionsV1beta1PodSecurityPolicy(**psp)
@@ -26,12 +22,11 @@ def crud_pod_security_policy_with_api(namespace, psp, action):
     with client.ApiClient() as api_client:
         api_instance = client.PolicyV1beta1Api(api_client)
         try:
-            if action.lower() == 'create':
+            if action.lower() == "create":
                 api_instance.create_pod_security_policy(body, pretty=True)
-            elif action.lower() == 'delete':
+            elif action.lower() == "delete":
                 api_instance.delete_pod_security_policy(
-                    name=psp['metadata']['name'],
-                    pretty=True
+                    name=psp["metadata"]["name"], pretty=True
                 )
         except ApiException as err:
             if err.status == 409:
@@ -45,13 +40,13 @@ def crud_pod_security_policy_with_api(namespace, psp, action):
 def crud_custom_object(namespace, obj, action):
     """Create pod security policy."""
     # Using the API because of LP:1886694
-    logging.info('Creating CRD object with K8s API')
+    logging.info("Creating CRD object with K8s API")
     _load_kube_config()
 
     with client.ApiClient() as api_client:
         api_instance = client.CustomObjectsApi(api_client)
         try:
-            if action.lower() == 'create':
+            if action.lower() == "create":
                 api_instance.create_namespaced_custom_object(**obj)
         except ApiException as err:
             if err.status == 409:
@@ -65,7 +60,7 @@ def crud_custom_object(namespace, obj, action):
 def crud_crd_object(namespace, obj, action):
     """Create pod security policy."""
     # Using the API because of LP:1886694
-    logging.info('Creating CRD object with K8s API')
+    logging.info("Creating CRD object with K8s API")
     _load_kube_config()
 
     body = client.V1beta1CustomResourceDefinition(**obj)
@@ -73,12 +68,11 @@ def crud_crd_object(namespace, obj, action):
     with client.ApiClient() as api_client:
         api_instance = client.ApiextensionsV1beta1Api(api_client)
         try:
-            if action.lower() == 'create':
+            if action.lower() == "create":
                 api_instance.create_custom_resource_definition(body, pretty=True)
-            elif action.lower() == 'delete':
+            elif action.lower() == "delete":
                 api_instance.delete_custom_resource_definition(
-                    name=obj['metadata']['name'],
-                    pretty=True
+                    name=obj["metadata"]["name"], pretty=True
                 )
         except ApiException as err:
             if err.status == 409:
@@ -88,15 +82,17 @@ def crud_crd_object(namespace, obj, action):
             else:
                 raise
 
+
 def _random_secret(length):
     letters = string.ascii_letters
-    result_str = ''.join(random.SystemRandom().choice(letters) for i in range(length))
+    result_str = "".join(random.SystemRandom().choice(letters) for i in range(length))
     return result_str
 
 
 def _load_kube_config():
     # TODO: Remove this workaround when bug LP:1892255 is fixed
     from pathlib import Path
+
     os.environ.update(
         dict(
             e.split("=")
@@ -108,14 +104,9 @@ def _load_kube_config():
     config.load_incluster_config()
 
 
-ACTION_MAP = {
-    'PodSecurityPolicy': crud_pod_security_policy_with_api
-}
+ACTION_MAP = {"PodSecurityPolicy": crud_pod_security_policy_with_api}
 
-VALID_ACTIONS = [
-    'DELETE',
-    'CREATE'
-]
+VALID_ACTIONS = ["DELETE", "CREATE"]
 
 
 def try_crd(ns, obj, action):
@@ -127,15 +118,9 @@ def try_crd(ns, obj, action):
 
 def create_k8s_object(namespace, k8s_object):
     """Create all supplementary K8s objects."""
-    ACTION_MAP.get(
-        k8s_object.get('kind'),
-        try_crd
-        )(namespace, k8s_object, 'create')
+    ACTION_MAP.get(k8s_object.get("kind"), try_crd)(namespace, k8s_object, "create")
 
 
 def remove_k8s_object(namespace, k8s_object):
     """Remove all supplementary K8s objects."""
-    ACTION_MAP.get(
-        k8s_object.get('kind'),
-        try_crd
-        )(namespace, k8s_object, 'delete')
+    ACTION_MAP.get(k8s_object.get("kind"), try_crd)(namespace, k8s_object, "delete")
