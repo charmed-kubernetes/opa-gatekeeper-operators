@@ -7,22 +7,14 @@ from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
-from charmhelpers.core.hookenv import (
-    log,
-    # metadata,
-    # status_set,
-    # config,
-    # network_get,
-    # relation_id,
-)
 from jinja2 import Template
+import os
 
 
 logger = logging.getLogger(__name__)
 
 
 class CustomResourceDefintion(object):
-
     def __init__(self, name, spec):
 
         self._name = name
@@ -31,6 +23,7 @@ class CustomResourceDefintion(object):
     @property
     def spec(self):
         return self._spec
+
     @property
     def name(self):
         return self._name
@@ -91,7 +84,7 @@ class OPAAuditCharm(CharmBase):
             print("Error in configuration file:", exc)
 
         crd_objects = [
-            CustomResourceDefintion(crd['metadata']['name'], crd['spec'])
+            CustomResourceDefintion(crd["metadata"]["name"], crd["spec"])
             for crd in crds
         ]
 
@@ -101,12 +94,12 @@ class OPAAuditCharm(CharmBase):
             spec_template = Template(fh.read())
 
         template_args = {
-            'crds': crd_objects,
-            'image_path': config["imagePath"],
-            'imagePullPolicy': config["imagePullPolicy"],
-            'app_name': self.app.name,
-            'audit_cli_args': self._audit_cli_args(),
-            'namespace': os.environ['JUJU_MODEL_NAME']
+            "crds": crd_objects,
+            "image_path": config["imagePath"],
+            "imagePullPolicy": config["imagePullPolicy"],
+            "app_name": self.app.name,
+            "audit_cli_args": self._audit_cli_args(),
+            "namespace": os.environ["JUJU_MODEL_NAME"],
         }
 
         spec = yaml.load(spec_template.render(**template_args))
@@ -114,12 +107,10 @@ class OPAAuditCharm(CharmBase):
         print(f"Pod spec: {spec}")
         return spec
 
-
     def _audit_cli_args(self):
         """
         Construct command line arguments for OPA Audit
         """
-        config = self.model.config
 
         args = [
             "--operation=audit",
