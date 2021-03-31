@@ -1,6 +1,6 @@
 import unittest
+import os
 from unittest.mock import patch
-
 from ops.testing import Harness
 from pathlib import Path
 from charm import OPAManagerCharm
@@ -22,13 +22,15 @@ class TestCharm(unittest.TestCase):
         harness = Harness(OPAManagerCharm)
         self.addCleanup(harness.cleanup)
         harness.begin()
+        model_name = "test-cli-args"
+        os.environ["JUJU_MODEL_NAME"] = model_name
         args = [
             "--operation=audit",
             "--operation=status",
             "--logtostderr",
             "--port=8443",
             "--logtostderr",
-            f"--exempt-namespace={harness.model}",
+            f"--exempt-namespace={model_name}",
             "--operation=webhook",
         ]
         assert args == harness.charm._cli_args()

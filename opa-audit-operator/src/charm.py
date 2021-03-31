@@ -93,6 +93,7 @@ class OPAAuditCharm(CharmBase):
         with open("files/pod-spec.yaml.jinja2") as fh:
             spec_template = Template(fh.read())
 
+        import pdb; pdb.set_trace()
         template_args = {
             "crds": crd_objects,
             "image_path": config["imagePath"],
