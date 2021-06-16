@@ -1,6 +1,11 @@
 name: gatekeeper-audit
 description: |
-  This charm deploys opa.
+  This charm deploys the Gatekeeper Controller Manager.
 summary: |
-  Kubernetes opa operator
+  This charm deploys Gatekeeper Audit
 series: [kubernetes]
+resources:
+  gatekeeper-image:
+    type: oci-image
+    description: 'Gatekeeper image'
+    upstream-source: "openpolicyagent/gatekeeper:v3.2.3"

@@ -9,7 +9,7 @@ from ops.framework import StoredState
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
 from jinja2 import Template
 import os
-
+from oci_image import OCIImageResource, OCIImageResourceError
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class OPAAuditCharm(CharmBase):
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.install, self._on_install)
         self._stored.set_default(things=[])
+        self.image = OCIImageResource(self, 'gatekeeper-image')
 
     def _on_config_changed(self, _):
         """
@@ -93,10 +94,15 @@ class OPAAuditCharm(CharmBase):
         with open("files/pod-spec.yaml.jinja2") as fh:
             spec_template = Template(fh.read())
 
-        import pdb; pdb.set_trace()
+        try:
+            image_details = self.image.fetch()
+        except OCIImageResourceError as e:
+            self.model.unit.status = e.status
+            return
+
         template_args = {
             "crds": crd_objects,
-            "image_path": config["imagePath"],
+            "image_details": image_details,
             "imagePullPolicy": config["imagePullPolicy"],
             "app_name": self.app.name,
             "audit_cli_args": self._audit_cli_args(),
@@ -139,9 +145,6 @@ class OPAAuditCharm(CharmBase):
         logger.debug("Checking Config")
         config = self.model.config
         missing = []
-
-        if not config.get("imagePath"):
-            missing.append("imagePath")
 
         return missing
 

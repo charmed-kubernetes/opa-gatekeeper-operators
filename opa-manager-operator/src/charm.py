@@ -8,7 +8,7 @@ from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
 from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
-
+from oci_image import OCIImageResource, OCIImageResourceError
 
 from charmhelpers.core.hookenv import (
     log,
@@ -44,11 +44,11 @@ class OPAManagerCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.start, self._on_start)
         self._stored.set_default(things=[])
+        self.image = OCIImageResource(self, 'gatekeeper-image')
 
     def _on_config_changed(self, _):
         """
@@ -74,9 +74,6 @@ class OPAManagerCharm(CharmBase):
 
     def _on_install(self, event):
         logger.info("Congratulations, the charm was properly installed!")
-
-    def _on_update_status(self, event):
-        logger.info("Status updated")
 
     def _build_pod_spec(self):
         """
@@ -105,9 +102,14 @@ class OPAManagerCharm(CharmBase):
 
         config = self.model.config
 
+        try:
+            image_details = self.image.fetch()
+        except OCIImageResourceError as e:
+            self.model.unit.status = e.status
+            return
         template_args = {
             "crds": crd_objects,
-            "image_path": config["imagePath"],
+            "image_details": image_details,
             "imagePullPolicy": config["imagePullPolicy"],
             "app_name": self.app.name,
             "cli_args": self._cli_args(),
@@ -129,27 +131,13 @@ class OPAManagerCharm(CharmBase):
         """
 
         args = [
-            "--operation=status",
             "--logtostderr",
             "--port=8443",
-            "--logtostderr",
             f"--exempt-namespace={os.environ['JUJU_MODEL_NAME']}",
             "--operation=webhook",
         ]
         return args
 
-    def _audit_cli_args(self):
-        """
-        Construct command line arguments for OPA
-        """
-
-        args = [
-            "--operation=audit",
-            "--operation=status",
-            "--logtostderr",
-        ]
-
-        return args
 
     def _check_config(self):
         """

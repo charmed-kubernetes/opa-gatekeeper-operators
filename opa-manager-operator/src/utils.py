@@ -83,12 +83,6 @@ def crud_crd_object(namespace, obj, action):
                 raise
 
 
-def _random_secret(length):
-    letters = string.ascii_letters
-    result_str = "".join(random.SystemRandom().choice(letters) for i in range(length))
-    return result_str
-
-
 def _load_kube_config():
     # TODO: Remove this workaround when bug LP:1892255 is fixed
     from pathlib import Path
@@ -105,8 +99,6 @@ def _load_kube_config():
 
 
 ACTION_MAP = {"PodSecurityPolicy": crud_pod_security_policy_with_api}
-
-VALID_ACTIONS = ["DELETE", "CREATE"]
 
 
 def try_crd(ns, obj, action):

@@ -237,7 +237,7 @@ containers:
   #         path: metadata.name
   #         api-version: v1
   #   imageDetails:
-  #     imagePath: {{ image_path }}
+  #     imagePath: {{ image_details }}
   #   ports:
   #     - containerPort: 8889
   #       name: audit-metrics
@@ -290,7 +290,7 @@ containers:
       name: healthz
       protocol: TCP
     imagePullPolicy: {{ imagePullPolicy }}
-    name: {{ app_name }}-manager
+    name: manager
     args: {{ cli_args }}
     command:
       - /manager
