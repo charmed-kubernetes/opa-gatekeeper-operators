@@ -129,7 +129,6 @@ class OPAManagerCharm(CharmBase):
         """
 
         args = [
-            "--operation=audit",
             "--operation=status",
             "--logtostderr",
             "--port=8443",
