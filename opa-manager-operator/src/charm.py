@@ -113,8 +113,6 @@ class OPAManagerCharm(CharmBase):
             "imagePullPolicy": config["imagePullPolicy"],
             "app_name": self.app.name,
             "cli_args": self._cli_args(),
-            "audit_cli_args": self._audit_cli_args(),
-            "crs": crs,
             "namespace": os.environ["JUJU_MODEL_NAME"],
         }
 
@@ -147,9 +145,6 @@ class OPAManagerCharm(CharmBase):
         logger.debug("Checking Config")
         config = self.model.config
         missing = []
-
-        if not config.get("imagePath"):
-            missing.append("imagePath")
 
         return missing
 
@@ -199,7 +194,6 @@ class OPAManagerCharm(CharmBase):
         pod_spec = self._build_pod_spec()
 
         self.model.pod.set_spec(pod_spec)
-        self.app.status = ActiveStatus()
         self.unit.status = ActiveStatus()
 
 
