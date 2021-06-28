@@ -1,6 +1,6 @@
 name: gatekeeper-audit
 description: |
-  This charm deploys the Gatekeeper Controller Manager.
+  This charm deploys the Gatekeeper Audit.
 summary: |
   This charm deploys Gatekeeper Audit
 series: [kubernetes]

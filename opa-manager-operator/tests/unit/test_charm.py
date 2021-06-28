@@ -25,11 +25,8 @@ class TestCharm(unittest.TestCase):
         model_name = "test-cli-args"
         os.environ["JUJU_MODEL_NAME"] = model_name
         args = [
-            "--operation=audit",
-            "--operation=status",
             "--logtostderr",
             "--port=8443",
-            "--logtostderr",
             f"--exempt-namespace={model_name}",
             "--operation=webhook",
         ]
@@ -55,13 +52,6 @@ class TestCharm(unittest.TestCase):
         harness.begin()
 
         assert harness.charm._on_install({}) is None
-
-    def test_on_update_status(self):
-        harness = Harness(OPAManagerCharm)
-        self.addCleanup(harness.cleanup)
-        harness.begin()
-
-        assert harness.charm._on_update_status({}) is None
 
     def test_configure_pod(self):
         harness = Harness(OPAManagerCharm)

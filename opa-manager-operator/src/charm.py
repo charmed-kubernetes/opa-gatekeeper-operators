@@ -7,7 +7,7 @@ from pathlib import Path
 from ops.charm import CharmBase
 from ops.main import main
 from ops.framework import StoredState
-from ops.model import ActiveStatus, MaintenanceStatus, BlockedStatus
+from ops.model import ActiveStatus, MaintenanceStatus
 from oci_image import OCIImageResource, OCIImageResourceError
 
 from charmhelpers.core.hookenv import (
@@ -48,7 +48,7 @@ class OPAManagerCharm(CharmBase):
         self.framework.observe(self.on.install, self._on_install)
         self.framework.observe(self.on.start, self._on_start)
         self._stored.set_default(things=[])
-        self.image = OCIImageResource(self, 'gatekeeper-image')
+        self.image = OCIImageResource(self, "gatekeeper-image")
 
     def _on_config_changed(self, _):
         """
@@ -94,12 +94,6 @@ class OPAManagerCharm(CharmBase):
             )
         ]
 
-        # Load custom resources
-        crs = [
-            CustomResourceDefintion(cr["metadata"]["name"], yaml.dump(cr))
-            for cr in self._load_yaml_objects(["files/psp.yaml"])
-        ]
-
         config = self.model.config
 
         try:
@@ -136,18 +130,6 @@ class OPAManagerCharm(CharmBase):
         ]
         return args
 
-
-    def _check_config(self):
-        """
-        Identify missing but required items in configuation
-        :returns: list of missing configuration items (configuration keys)
-        """
-        logger.debug("Checking Config")
-        config = self.model.config
-        missing = []
-
-        return missing
-
     def _render_jinja_template(self, template, ctx):
         spec_template = {}
         with open(template) as fh:
@@ -174,17 +156,6 @@ class OPAManagerCharm(CharmBase):
         Setup a new OPA pod specification
         """
         logger.debug("Configuring Pod")
-
-        missing_config = self._check_config()
-        if missing_config:
-            logger.error(
-                "Incomplete Configuration : {}. "
-                "Application will be blocked.".format(missing_config)
-            )
-            self.unit.status = BlockedStatus(
-                "Missing configuration: {}".format(missing_config)
-            )
-            return
 
         if not self.unit.is_leader():
             self.unit.status = ActiveStatus()

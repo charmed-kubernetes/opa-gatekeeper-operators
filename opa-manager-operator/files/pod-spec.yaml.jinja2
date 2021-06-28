@@ -80,10 +80,6 @@ kubernetesResources:
   secrets:
     - name: gatekeeper-webhook-server-cert
       type: Opaque
-#          data:
-#            ca.crt:
-#            ca.key:
-#            tls.key:
 serviceAccount:
   automountServiceAccountToken: true
   roles:
@@ -227,47 +223,6 @@ serviceAccount:
             - watch
 
 containers:
-  # - envConfig:
-  #     POD_NAMESPACE:
-  #       field:
-  #         path: metadata.namespace
-  #         api-version: v1
-  #     POD_NAME:
-  #       field:
-  #         path: metadata.name
-  #         api-version: v1
-  #   imageDetails:
-  #     imagePath: {{ image_details }}
-  #   ports:
-  #     - containerPort: 8889
-  #       name: audit-metrics
-  #       protocol: TCP
-  #     - containerPort: 9091
-  #       name: audit-healthz
-  #       protocol: TCP
-  #   imagePullPolicy: {{ imagePullPolicy }}
-  #   name: {{ app_name }}-audit
-  #   args: {{ audit_cli_args }}
-  #   command:
-  #     - /manager
-  #   image: 'openpolicyagent/gatekeeper:v3.2.3'
-  #   kubernetes:
-  #     livenessProbe:
-  #       httpGet:
-  #         path: /healthz
-  #         port: 9091
-  #     readinessProbe:
-  #       httpGet:
-  #         path: /readyz
-  #         port: 9091
-  #     securityContext:
-  #       allowPrivilegeEscalation: false
-  #       capabilities:
-  #         drop:
-  #           - all
-  #       runAsGroup: 999
-  #       runAsNonRoot: true
-  #       runAsUser: 1000
   - envConfig:
       POD_NAMESPACE:
         field:

@@ -2,8 +2,6 @@
 
 import logging
 import os
-import random
-import string
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 

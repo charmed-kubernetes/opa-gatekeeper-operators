@@ -1,3 +1,0 @@
-reload-config:
-  description: |
-    Tell OPA to reload its config from the ConfigMap.

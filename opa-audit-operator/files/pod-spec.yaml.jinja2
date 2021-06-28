@@ -165,11 +165,10 @@ containers:
         name: healthz
         protocol: TCP
     imagePullPolicy: {{ imagePullPolicy }}
-    name: {{ app_name }}-audit
+    name: audit
     args: {{ audit_cli_args }}
     command:
       - /manager
-    image: 'openpolicyagent/gatekeeper:v3.2.3'
     kubernetes:
       livenessProbe:
         httpGet:

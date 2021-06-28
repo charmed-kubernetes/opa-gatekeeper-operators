@@ -3,6 +3,6 @@ options:
   imagePullPolicy:
     type: string
     description: |
-      Image pull policy.
+      Image pull policy. Valid values are Always, IfNotPresent and Never
     default: "Always"
 
