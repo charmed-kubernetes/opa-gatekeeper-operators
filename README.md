@@ -37,12 +37,10 @@ $ juju deploy gatekeeper-manager --channel=beta
 ### Post deployment steps
 
 ```
-$ kubectl apply -f docs/gatekeeper-rb.yaml
+$ NAMESPACE=your-namespace
 $ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 
-$ CA_CERT=$(kubectl get secrets -n ${NAMESPACE} gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 $ for i in {0..1}; do kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
-$ kubectl apply -f docs/gatekeeper-rb.yaml
 
 ```
 

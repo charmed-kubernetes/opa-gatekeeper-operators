@@ -43,12 +43,10 @@ $ juju deploy gatekeeper-manager --channel=beta
 ### Post deployment steps
 
 ```
-$ kubectl apply -f docs/gatekeeper-rb.yaml
+$ NAMESPACE=your-namespace
 $ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 
-$ CA_CERT=$(kubectl get secrets -n ${NAMESPACE} gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 $ for i in {0..1}; do kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
-$ kubectl apply -f docs/gatekeeper-rb.yaml
 
 ```
 ## Development Environment Installation
@@ -62,5 +60,3 @@ Note that the spark jobs typically set limits and need a CPU and a gig of ram. S
 1. Create a cluster: `microk8s install --cpu=4 --mem=8`
 1. Add the required addons: `microk8s enable storage dns`
 1. Export the current kubeconfig: `microk8s config > kube.conf; export KUBECONFIG=kube.conf`
-
-
