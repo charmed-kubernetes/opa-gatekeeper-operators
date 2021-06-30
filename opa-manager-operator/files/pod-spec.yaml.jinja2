@@ -249,7 +249,6 @@ containers:
     args: {{ cli_args }}
     command:
       - /manager
-    image: 'openpolicyagent/gatekeeper:v3.2.3'
     kubernetes:
       livenessProbe:
         httpGet:
