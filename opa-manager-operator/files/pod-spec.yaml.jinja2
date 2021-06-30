@@ -27,8 +27,6 @@ kubernetesResources:
   - name: gatekeeper-validating-webhook-configuration
     labels:
       gatekeeper.sh/system: "yes"
-#    annotations:
-#      model.juju.is/disable-prefix: "true"
     webhooks:
       - clientConfig:
             caBundle: Cg==
