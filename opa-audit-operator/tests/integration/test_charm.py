@@ -24,6 +24,13 @@ async def test_build_and_deploy(ops_test):
 
     model_name = ops_test._default_model_name
 
+    resources = {
+        "gatekeeper-image": "openpolicyagent/gatekeeper:v3.2.3"
+    }
+    for series in meta["series"]:
+        await ops_test.model.deploy(charm, application_name=series, series=series, resources=resources)
+    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
+    
     with open("docs/gatekeeper-rb.yaml.template", "r") as fh:
         template = Template(fh.read())
         role_binding_file.write_text(
@@ -44,33 +51,9 @@ async def test_build_and_deploy(ops_test):
             if err.status == 409:
                 # ignore "already exists" errors so that we can recover from
                 # partially failed setups
-                return
+                pass
             else:
                 raise
 
-    ca_cert = ""
-    with client.ApiClient() as api_client:
-        # Create an instance of the API class
-        api_instance = client.CoreV1Api(api_client)
-        name = f"{model_name}-gatekeeper-validating-webhook-configuration"
 
-        ca_cert = api_instance.read_namespaced_secret(name, model_name)
 
-    with client.ApiClient() as api_client:
-        # Create an instance of the API class
-        api_instance = client.AdmissionregistrationV1Api(api_client)
-        name = f"{model_name}-gatekeeper-validating-webhook-configuration"
-        for i in range(1):
-            body = [
-                {
-                    "op": "replace",
-                    "path": f"/webhooks/{i}/clientConfig/caBundle",
-                    "value": f"{ca_cert}",
-                }
-            ]
-
-            api_instance.patch_validating_webhook_configuration(name, body)
-
-    for series in meta["series"]:
-        await ops_test.model.deploy(charm, application_name=series, series=series)
-    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)

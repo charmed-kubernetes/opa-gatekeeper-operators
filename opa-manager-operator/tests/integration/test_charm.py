@@ -1,8 +1,10 @@
 import logging
 from pathlib import Path
 import os
+import time
 import pytest
 import yaml
+import re
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from jinja2 import Template
@@ -19,11 +21,29 @@ config.load_kube_config(KUBECONFIG)  # TODO: check how to use this with designat
 @pytest.mark.abort_on_fail
 async def test_build_and_deploy(ops_test):
     charm = await ops_test.build_charm(".")
-
+    resources = {
+        "gatekeeper-image": "openpolicyagent/gatekeeper:v3.2.3"
+    }
+    for series in meta["series"]:
+        await ops_test.model.deploy(charm, application_name="gatekeeper", series=series, resources=resources)
+    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
     role_binding_file = Path("/tmp/k8s-rolebinding.yaml")
 
+    # Due to: https://github.com/juju/python-libjuju/issues/515
+    # We have to use the k8s API to wait, we cannot use:
+    # ops_test.model.applications['gatekeeper'].units[0].workload_status
     model_name = ops_test._default_model_name
-
+    with client.ApiClient() as api_client:
+        api_instance = client.CoreV1Api(api_client)
+        try:
+            while True:
+                pods = api_instance.list_namespaced_pod(model_name)
+                pod = [pod for pod in pods.items if re.search(r'gatekeeper-(([a-z0-9]){2,}){1}-{1}(([a-z0-9]){2,}){1}', pod.metadata.name) != None ][0]
+                if [condition for condition in pod.status.conditions if condition.type == 'ContainersReady'][0].status == 'True':
+                    break
+                time.sleep(5)
+        except ApiException as err:
+            raise
     with open("docs/gatekeeper-rb.yaml.template", "r") as fh:
         template = Template(fh.read())
         role_binding_file.write_text(
@@ -44,7 +64,7 @@ async def test_build_and_deploy(ops_test):
             if err.status == 409:
                 # ignore "already exists" errors so that we can recover from
                 # partially failed setups
-                return
+                pass
             else:
                 raise
 
@@ -52,9 +72,9 @@ async def test_build_and_deploy(ops_test):
     with client.ApiClient() as api_client:
         # Create an instance of the API class
         api_instance = client.CoreV1Api(api_client)
-        name = f"{model_name}-gatekeeper-validating-webhook-configuration"
+        name = f"gatekeeper-webhook-server-cert"
 
-        ca_cert = api_instance.read_namespaced_secret(name, model_name)
+        ca_cert = api_instance.read_namespaced_secret(name, model_name).data["ca.crt"]
 
     with client.ApiClient() as api_client:
         # Create an instance of the API class
@@ -71,9 +91,7 @@ async def test_build_and_deploy(ops_test):
 
             api_instance.patch_validating_webhook_configuration(name, body)
 
-    for series in meta["series"]:
-        await ops_test.model.deploy(charm, application_name=series, series=series)
-    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
+
 
 
 async def test_status_messages(ops_test):
