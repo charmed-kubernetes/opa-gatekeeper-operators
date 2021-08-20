@@ -1,0 +1,18 @@
+type: charm
+bases:
+    
+
+    # (Optional) Expanded, long-form definition
+    - build-on:
+          - name: ubuntu
+            channel: "20.04"
+            # (Optional) List of architecture strings, defaults to machine architecture
+            architectures:
+                - amd64
+
+      run-on:
+          - name: ubuntu
+            channel: "20.04"
+            # (Optional) List of architecture strings, defaults to machine architecture
+            architectures:
+                - amd64
