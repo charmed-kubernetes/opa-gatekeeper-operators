@@ -24,13 +24,6 @@ async def test_build_and_deploy(ops_test):
 
     model_name = ops_test._default_model_name
 
-    resources = {"gatekeeper-image": "openpolicyagent/gatekeeper:v3.2.3"}
-    for series in meta["series"]:
-        await ops_test.model.deploy(
-            charm, application_name=series, series=series, resources=resources
-        )
-    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
-
     with open("docs/gatekeeper-rb.yaml.template", "r") as fh:
         template = Template(fh.read())
         role_binding_file.write_text(
@@ -54,3 +47,11 @@ async def test_build_and_deploy(ops_test):
                 pass
             else:
                 raise
+    resources = {"gatekeeper-image": "openpolicyagent/gatekeeper:v3.2.3"}
+    for series in meta["series"]:
+        await ops_test.model.deploy(
+            charm, application_name="opa-audit-test", series=series, resources=resources
+        )
+    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
+
+
