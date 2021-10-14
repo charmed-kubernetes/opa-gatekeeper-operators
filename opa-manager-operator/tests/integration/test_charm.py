@@ -24,13 +24,13 @@ async def test_build_and_deploy(ops_test):
     # Due to: https://github.com/juju/python-libjuju/issues/515
     #  We have to use the k8s API to wait, we cannot use:
     # ops_test.model.applications['gatekeeper'].units[0].workload_status
-    model_name = ops_test._default_model_name
+    model_name = ops_test.model_name
     role_binding_file = Path("/tmp/k8s-rolebinding.yaml")
     with open("docs/gatekeeper-rb.yaml.template", "r") as fh:
         template = Template(fh.read())
         role_binding_file.write_text(
             template.render(
-                service_account_user=f"system:serviceaccount:{model_name}:kubernetes-operator"
+                service_account_user=f"system:serviceaccount:{model_name}:opa-manager-test-operator"
             )
         )
     role_binding = yaml.load_all(role_binding_file.read_text(), Loader=yaml.FullLoader)
