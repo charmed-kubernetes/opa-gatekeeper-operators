@@ -1,0 +1,9 @@
+# Default values for opa-operator.
+options:
+
+  imagePullPolicy:
+    type: string
+    description: |
+      Image pull policy. Valid values are Always, Never, IfNotPresent
+    default: "Always"
+

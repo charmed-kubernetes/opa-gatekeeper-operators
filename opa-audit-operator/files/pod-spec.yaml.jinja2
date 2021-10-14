@@ -1,0 +1,188 @@
+version: 3
+kubernetesResources:
+  customResourceDefinitions:
+    {% for crd in crds %}
+    - name: {{crd.name}}
+      spec: {{crd.spec}}
+    {% endfor %}
+serviceAccount:
+  automountServiceAccountToken: true
+  roles:
+    - global: false
+      rules:
+        - apiGroups:
+            - ''
+          resources:
+            - events
+          verbs:
+            - create
+            - patch
+        - apiGroups:
+            - ''
+          resources:
+            - secrets
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+    - global: true
+      rules:
+        - apiGroups:
+            - '*'
+          resources:
+            - '*'
+          verbs:
+            - get
+            - list
+            - watch
+        - apiGroups:
+            - apiextensions.k8s.io
+          resources:
+            - customresourcedefinitions
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+        - apiGroups:
+            - config.gatekeeper.sh
+          resources:
+            - configs
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+        - apiGroups:
+            - config.gatekeeper.sh
+          resources:
+            - configs/status
+          verbs:
+            - get
+            - patch
+            - update
+        - apiGroups:
+            - constraints.gatekeeper.sh
+          resources:
+            - '*'
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+        - apiGroups:
+            - policy
+          resourceNames:
+            - gatekeeper-admin
+          resources:
+            - podsecuritypolicies
+          verbs:
+            - use
+        - apiGroups:
+            - status.gatekeeper.sh
+          resources:
+            - '*'
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+        - apiGroups:
+            - templates.gatekeeper.sh
+          resources:
+            - constrainttemplates
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+        - apiGroups:
+            - templates.gatekeeper.sh
+          resources:
+            - constrainttemplates/finalizers
+          verbs:
+            - delete
+            - get
+            - patch
+            - update
+        - apiGroups:
+            - templates.gatekeeper.sh
+          resources:
+            - constrainttemplates/status
+          verbs:
+            - get
+            - patch
+            - update
+        - apiGroups:
+            - admissionregistration.k8s.io
+          resourceNames:
+            - gatekeeper-validating-webhook-configuration
+          resources:
+            - validatingwebhookconfigurations
+          verbs:
+            - create
+            - delete
+            - get
+            - list
+            - patch
+            - update
+            - watch
+containers:
+  - envConfig:
+      POD_NAMESPACE:
+        field:
+          path: metadata.namespace
+          api-version: v1
+      POD_NAME:
+        field:
+          path: metadata.name
+          api-version: v1
+    imageDetails: {{ image_details }}
+    ports:
+      - containerPort: 8888
+        name: metrics
+        protocol: TCP
+      - containerPort: 9090
+        name: healthz
+        protocol: TCP
+    imagePullPolicy: {{ imagePullPolicy }}
+    name: audit
+    args: {{ audit_cli_args }}
+    command:
+      - /manager
+    kubernetes:
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 9090
+      readinessProbe:
+        httpGet:
+          path: /readyz
+          port: 9090
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - all
+        runAsGroup: 999
+        runAsNonRoot: true
+        runAsUser: 1000

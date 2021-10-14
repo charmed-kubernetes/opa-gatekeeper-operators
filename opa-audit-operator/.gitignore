@@ -1,0 +1,7 @@
+notes.md
+build/
+kube.conf
+*.charm
+venv
+.vscode/
+__pycache__/
