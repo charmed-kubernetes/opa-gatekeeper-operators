@@ -66,7 +66,7 @@ class OPAManagerCharm(CharmBase):
     def _load_yaml_objects(self, files_list):
         yaml_objects = []
         try:
-            yaml_objects = [yaml.load(Path(f).read_text()) for f in files_list]
+            yaml_objects = [yaml.load(Path(f).read_text(), yaml.Loader) for f in files_list]
         except yaml.YAMLError as exc:
             print("Error in configuration file:", exc)
 
@@ -114,7 +114,7 @@ class OPAManagerCharm(CharmBase):
             "files/pod-spec.yaml.jinja2", template_args
         )
 
-        spec = yaml.load(template)
+        spec = yaml.load(template, yaml.Loader)
         return spec
 
     def _cli_args(self):
@@ -144,7 +144,8 @@ class OPAManagerCharm(CharmBase):
                 self._render_jinja_template(
                     "files/sync.yaml.jinja2",
                     {"namespace": os.environ["JUJU_MODEL_NAME"]},
-                )
+                ),
+                yaml.Loader
             )
         )
         log(f"K8s objects: {k8s_objects}")
