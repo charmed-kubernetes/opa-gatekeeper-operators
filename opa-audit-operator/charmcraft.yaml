@@ -1,6 +1,14 @@
 type: charm
+bases:
+- build-on:
+  - name: "ubuntu"
+    channel: "20.04"
+  run-on:
+  - name: "ubuntu"
+    channel: "20.04"
 parts:
   charm:
     build-packages: [git]
+    charm-python-packages: [setuptools < 58]
     prime:
       - ./files/*

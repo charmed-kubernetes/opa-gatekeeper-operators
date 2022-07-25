@@ -68,7 +68,7 @@ class OPAAuditCharm(CharmBase):
         crds = []
         try:
             crds = [
-                yaml.load(Path(f).read_text())
+                yaml.full_load(Path(f).read_text())
                 for f in [
                     "files/configs.config.gatekeeper.sh.yaml",
                     "files/constrainttemplates.templates.gatekeeper.sh.yaml",
@@ -104,7 +104,7 @@ class OPAAuditCharm(CharmBase):
             "namespace": os.environ["JUJU_MODEL_NAME"],
         }
 
-        spec = yaml.load(spec_template.render(**template_args))
+        spec = yaml.full_load(spec_template.render(**template_args))
 
         print(f"Pod spec: {spec}")
         return spec
