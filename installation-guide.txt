@@ -1,0 +1,25 @@
+To install this charm I had to run it on k8s v1.21, I haven't tested it on v1.22 but I think that it shouldn't work.
+
+The steps to install were:
+- Build the charms
+- Install microk8s:
+    $ sudo snap install microk8s --classic --channel=1.21/stable
+- Enable rbac addon and bootstrap juju controller
+- Deploy the charms:
+    $ juju add-model gatekeeper
+    $ juju deploy ./gatekeeper-audit_ubuntu-20.04-amd64.charm --resource gatekeeper-image=openpolicyagent/gatekeeper:v3.2.3
+    $ juju deploy ./gatekeeper-controller-manager_ubuntu-20.04-amd64.charm --resource gatekeeper-image=openpolicyagent/gatekeeper:v3.2.3
+- After the charms have been deployed run the bash script:
+```
+NAMESPACE=gatekeeper
+CA_CERT=$(microk8s kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
+
+for i in {0..1}; do microk8s kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
+```
+- Apply the example policy:
+    $ microk8s kubectl apply -f ./docs/policy-example.yaml
+    $ microk8s kubectl apply -f ./docs/policy-spec-example.yaml
+- Validate that the policy works by trying to install a pod without the necessary label, e.g.:
+    $ microk8s kubectl apply -f https://k8s.io/examples/pods/simple-pod.yaml
+This should return an error like this:
+    Error from server ([denied by example-policy] you must provide labels: {"gatekeeper"}): error when creating "https://k8s.io/examples/pods/simple-pod.yaml": admission webhook "validation.gatekeeper.sh" denied the request: [denied by example-policy] you must provide labels: {"gatekeeper"}
