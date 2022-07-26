@@ -46,7 +46,7 @@ class OPAManagerCharm(CharmBase):
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.stop, self._on_stop)
         self.framework.observe(self.on.install, self._on_install)
-        self.framework.observe(self.on.start, self._on_start)
+        # self.framework.observe(self.on.start, self._on_start)
         self._stored.set_default(things=[])
         self.image = OCIImageResource(self, "gatekeeper-image")
 

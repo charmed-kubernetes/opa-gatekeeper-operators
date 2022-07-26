@@ -4,3 +4,4 @@ parts:
     build-packages: [git]
     prime:
       - ./files/*
+    charm-python-packages: [setuptools < 58]
