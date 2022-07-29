@@ -4,16 +4,15 @@ from pathlib import Path
 
 # Shouldn't this work without `lib.`?
 from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
-from ops.charm import CharmBase
-from ops.pebble import ServiceStatus
-from ops.pebble import Error as PebbleError
-from ops.main import main
-from ops.framework import StoredState
-from ops.model import ActiveStatus, MaintenanceStatus, WaitingStatus, ModelError
+from lightkube import Client, codecs
 from lightkube.models.core_v1 import ServicePort
 from lightkube.resources.apps_v1 import StatefulSet
-from lightkube import Client, codecs
-
+from ops.charm import CharmBase
+from ops.framework import StoredState
+from ops.main import main
+from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
+from ops.pebble import Error as PebbleError
+from ops.pebble import ServiceStatus
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +35,9 @@ class OPAManagerCharm(CharmBase):
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
 
-        self.framework.observe(self.on.gatekeeper_pebble_ready, self._on_gatekeeper_pebble_ready)
+        self.framework.observe(
+            self.on.gatekeeper_pebble_ready, self._on_gatekeeper_pebble_ready
+        )
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
 
@@ -125,7 +126,9 @@ class OPAManagerCharm(CharmBase):
 
         with Path("files", "gatekeeper.yaml").open() as f:
             for policy in codecs.load_all_yaml(
-                f, context={"namespace": self.model.name}, create_resources_for_crds=True
+                f,
+                context={"namespace": self.model.name},
+                create_resources_for_crds=True,
             ):
                 # TODO: This may throw, should we catch it and change the status?
                 self.client.apply(policy, force=True)
@@ -170,7 +173,7 @@ class OPAManagerCharm(CharmBase):
                             "readOnly": True,
                         },
                     ],
-                    "ports":[
+                    "ports": [
                         {
                             "containerPort": 8443,
                             "name": "webhook-server",
@@ -200,13 +203,7 @@ class OPAManagerCharm(CharmBase):
             ],
         }
 
-        patch = {
-            "spec": {
-                "template": {
-                    "spec": pod_spec_patch
-                }
-            }
-        }
+        patch = {"spec": {"template": {"spec": pod_spec_patch}}}
         self.client.patch(
             StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
         )
