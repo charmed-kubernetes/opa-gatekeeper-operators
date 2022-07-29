@@ -32,11 +32,6 @@ class OPAManagerCharm(CharmBase):
             self,
             [sp],
             service_name="gatekeeper-webhook-service",
-            additional_selectors={
-                "control-plane": "controller-manager",
-                "gatekeeper.sh/operation": "webhook",
-                "gatekeeper.sh/system": "yes",
-            },
         )
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
