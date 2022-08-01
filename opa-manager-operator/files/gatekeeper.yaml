@@ -1,14 +1,6 @@
 # Fetched from
 # https://raw.githubusercontent.com/open-policy-agent/gatekeeper/v3.9.0/manifest_staging/deploy/gatekeeper.yaml
 
-apiVersion: v1
-kind: Namespace
-metadata:
-  labels:
-    admission.gatekeeper.sh/ignore: no-self-managing
-    control-plane: controller-manager
-    gatekeeper.sh/system: "yes"
-  name: {{ namespace }}
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -2118,14 +2110,6 @@ status:
   conditions: []
   storedVersions: []
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  labels:
-    gatekeeper.sh/system: "yes"
-  name: gatekeeper-admin
-  namespace: {{ namespace }}
----
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
@@ -2361,7 +2345,7 @@ roleRef:
   name: gatekeeper-manager-role
 subjects:
 - kind: ServiceAccount
-  name: gatekeeper-admin
+  name: gatekeeper-controller-manager
   namespace: {{ namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -2376,7 +2360,7 @@ roleRef:
   name: gatekeeper-manager-role
 subjects:
 - kind: ServiceAccount
-  name: gatekeeper-admin
+  name: gatekeeper-controller-manager
   namespace: {{ namespace }}
 ---
 apiVersion: v1
@@ -2398,9 +2382,7 @@ spec:
   minAvailable: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
-      gatekeeper.sh/operation: webhook
-      gatekeeper.sh/system: "yes"
+      app.kubernetes.io/name: gatekeeper-controller-manager
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration

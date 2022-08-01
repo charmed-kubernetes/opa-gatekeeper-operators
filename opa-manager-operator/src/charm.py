@@ -76,22 +76,22 @@ class OPAManagerCharm(CharmBase):
                     },
                 },
             },
-            # "checks":{
-            #     "up": {
-            #         "override": "replace",
-            #         "level": "alive",
-            #         "http": {
-            #             "url": "http://localhost:9090/healthz",
-            #         }
-            #     },
-            #     "ready": {
-            #         "override": "replace",
-            #         "level": "ready",
-            #         "http": {
-            #             "url": "http://localhost:9090/readyz",
-            #         }
-            #     },
-            # }
+            "checks": {
+                "up": {
+                    "override": "replace",
+                    "level": "alive",
+                    "http": {
+                        "url": "http://localhost:9090/healthz",
+                    },
+                },
+                "ready": {
+                    "override": "replace",
+                    "level": "ready",
+                    "http": {
+                        "url": "http://localhost:9090/readyz",
+                    },
+                },
+            },
         }
 
     def _on_gatekeeper_pebble_ready(self, event):
@@ -100,15 +100,14 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = event.workload
-        layer = self._gatekeeper_layer()
-        if container.can_connect():
-            services = container.get_plan().to_dict().get("services", {})
-            if services != layer["services"]:
-                container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer)
-                container.autostart()
-        self._apply_spec()
+        self._create_secret()
+        # Apply the statefulset first to avoid duplicate calls,
+        # because it will cause the pod to restart
         self._patch_statefulset()
-
+        layer = self._gatekeeper_layer()
+        container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
+        self._apply_spec()
+        container.autostart()
         self._on_update_status(event)
 
     def _on_update_status(self, event):
@@ -119,19 +118,32 @@ class OPAManagerCharm(CharmBase):
         else:
             self.unit.status = ActiveStatus()
 
+    def _create_secret(self):
+        if not self.unit.is_leader():
+            return
+        logger.info("Creating secret.yaml")
+
+        with Path("files", "secret.yaml").open() as f:
+            for secret in codecs.load_all_yaml(
+                f,
+                context={"namespace": self.model.name},
+            ):
+                # TODO: This may throw, should we catch it and change the status?
+                self.client.create(secret)
+
     def _apply_spec(self):
         if not self.unit.is_leader():
             return
         logger.info("Applying gatekeeper.yaml")
 
         with Path("files", "gatekeeper.yaml").open() as f:
-            for policy in codecs.load_all_yaml(
+            for resource in codecs.load_all_yaml(
                 f,
                 context={"namespace": self.model.name},
                 create_resources_for_crds=True,
             ):
                 # TODO: This may throw, should we catch it and change the status?
-                self.client.apply(policy, force=True)
+                self.client.apply(resource, force=True)
 
     def _patch_statefulset(self):
         """
@@ -150,9 +162,9 @@ class OPAManagerCharm(CharmBase):
                                 "labelSelector": {
                                     "matchExpressions": [
                                         {
-                                            "key": "gatekeeper.sh/operation",
+                                            "key": "app.kubernetes.io/name",
                                             "operator": "In",
-                                            "values": ["webhook"],
+                                            "values": ["gatekeeper-controller-manager"],
                                         }
                                     ],
                                 },
@@ -192,6 +204,7 @@ class OPAManagerCharm(CharmBase):
                     ],
                 },
             ],
+            "priorityClassName": "system-cluster-critical",
             "volumes": [
                 {
                     "name": "cert",
