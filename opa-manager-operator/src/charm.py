@@ -110,6 +110,18 @@ class OPAManagerCharm(CharmBase):
         container.autostart()
         self._on_update_status(event)
 
+    def _on_config_changed(self, event):
+        if not self.is_running:
+            logger.info("Gatekeeper is not running")
+            return
+
+        container = event.workload
+        self._create_secret()
+        self._apply_spec()
+        container.stop()
+        container.start()
+        self._on_update_status(event)
+
     def _on_update_status(self, event):
         """Update Juju status"""
         logger.info("Update status")
