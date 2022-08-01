@@ -11,5 +11,5 @@ parts:
     build-packages: [git]
     charm-python-packages: [setuptools < 58]
     prime:
-      - ./files/*
+      - upstream/**
 

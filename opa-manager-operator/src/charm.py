@@ -2,17 +2,16 @@
 import logging
 from pathlib import Path
 
-# Shouldn't this work without `lib.`?
-from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
 from lightkube import Client, codecs
 from lightkube.models.core_v1 import ServicePort
-from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
+from ops.manifests import Collector
+from manifests import ControllerManagerManifests
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +25,9 @@ class OPAManagerCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        sp = ServicePort(443, name="https-webhook-server", targetPort="webhook-server")
-        self.service_patcher = KubernetesServicePatch(
-            self,
-            [sp],
-            service_name="gatekeeper-webhook-service",
-        )
+
+        self.manifests = ControllerManagerManifests(self.app.name, self.config)
+        self.collector = Collector(self.manifests)
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
 
@@ -40,6 +36,11 @@ class OPAManagerCharm(CharmBase):
         )
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
+
+        # Manifest-related actions
+        self.framework.observe(self.on.list_resources_action, self._list_resources)
+        self.framework.observe(self.on.list_versions_action, self._list_versions)
+        self.framework.observe(self.on.stop, self._cleanup)
 
     @property
     def is_running(self):
@@ -100,10 +101,6 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = event.workload
-        self._create_secret()
-        # Apply the statefulset first to avoid duplicate calls,
-        # because it will cause the pod to restart
-        self._patch_statefulset()
         layer = self._gatekeeper_layer()
         container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
         self._apply_spec()
@@ -116,7 +113,6 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = event.workload
-        self._create_secret()
         self._apply_spec()
         container.stop()
         container.start()
@@ -130,114 +126,19 @@ class OPAManagerCharm(CharmBase):
         else:
             self.unit.status = ActiveStatus()
 
-    def _create_secret(self):
-        if not self.unit.is_leader():
-            return
-        logger.info("Creating secret.yaml")
-
-        with Path("files", "secret.yaml").open() as f:
-            for secret in codecs.load_all_yaml(
-                f,
-                context={"namespace": self.model.name},
-            ):
-                # TODO: This may throw, should we catch it and change the status?
-                self.client.apply(secret)
-
     def _apply_spec(self):
         if not self.unit.is_leader():
             return
-        logger.info("Applying gatekeeper.yaml")
+        self.manifests.apply_manifests()
 
-        with Path("files", "gatekeeper.yaml").open() as f:
-            for resource in codecs.load_all_yaml(
-                f,
-                context={"namespace": self.model.name},
-                create_resources_for_crds=True,
-            ):
-                # TODO: This may throw, should we catch it and change the status?
-                self.client.apply(resource, force=True)
+    def _cleanup(self, _event):
+        self.manifests.delete_manifests(ignore_unauthorized=True)
 
-    def _patch_statefulset(self):
-        """
-        Patch the statefulset to make it reflect the vanilla gatekeeper deployment spec
-        """
-        if not self.unit.is_leader():
-            return
-        logger.info("Patching the statefulset")
+    def _list_resources(self, event):
+        return self.collector.list_resources(event, None, None)
 
-        pod_spec_patch = {
-            "affinity": {
-                "podAntiAffinity": {
-                    "preferredDuringSchedulingIgnoredDuringExecution": [
-                        {
-                            "podAffinityTerm": {
-                                "labelSelector": {
-                                    "matchExpressions": [
-                                        {
-                                            "key": "app.kubernetes.io/name",
-                                            "operator": "In",
-                                            "values": ["gatekeeper-controller-manager"],
-                                        }
-                                    ],
-                                },
-                                "topologyKey": "kubernetes.io/hostname",
-                            },
-                            "weight": 100,
-                        },
-                    ],
-                },
-            },
-            "containers": [
-                {
-                    "name": "gatekeeper",
-                    "volumeMounts": [
-                        {
-                            "mountPath": "/certs",
-                            "name": "cert",
-                            "readOnly": True,
-                        },
-                    ],
-                    "ports": [
-                        {
-                            "containerPort": 8443,
-                            "name": "webhook-server",
-                            "protocol": "TCP",
-                        },
-                        {
-                            "containerPort": 8888,
-                            "name": "metrics",
-                            "protocol": "TCP",
-                        },
-                        {
-                            "containerPort": 9090,
-                            "name": "healthz",
-                            "protocol": "TCP",
-                        },
-                    ],
-                },
-            ],
-            "priorityClassName": "system-cluster-critical",
-            "volumes": [
-                {
-                    "name": "cert",
-                    "secret": {
-                        "defaultMode": 420,
-                        "secretName": "gatekeeper-webhook-server-cert",
-                    },
-                },
-            ],
-        }
-
-        patch = {"spec": {"template": {"spec": pod_spec_patch}}}
-        self.client.patch(
-            StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
-        )
-
-    def _on_config_changed(self, event):
-        """
-        Set a new Juju pod specification
-        """
-        logger.info("Config changed")
+    def _list_versions(self, event):
+        self.collector.list_versions(event)
 
 
 if __name__ == "__main__":
