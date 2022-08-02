@@ -2363,14 +2363,6 @@ subjects:
   name: gatekeeper-controller-manager
   namespace: {{ namespace }}
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  labels:
-    gatekeeper.sh/system: "yes"
-  name: gatekeeper-webhook-server-cert
-  namespace: {{ namespace }}
----
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
 metadata:

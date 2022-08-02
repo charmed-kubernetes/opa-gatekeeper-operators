@@ -141,7 +141,7 @@ class OPAManagerCharm(CharmBase):
                 context={"namespace": self.model.name},
             ):
                 # TODO: This may throw, should we catch it and change the status?
-                self.client.create(secret)
+                self.client.apply(secret)
 
     def _apply_spec(self):
         if not self.unit.is_leader():
