@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 
 from lightkube import Client, codecs
-from lightkube.models.core_v1 import ServicePort
+from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
@@ -31,6 +31,8 @@ class OPAManagerCharm(CharmBase):
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
 
+        self.framework.observe(self.on.install, self._install_or_upgrade)
+        self.framework.observe(self.on.upgrade_charm, self._install_or_upgrade)
         self.framework.observe(
             self.on.gatekeeper_pebble_ready, self._on_gatekeeper_pebble_ready
         )
@@ -40,6 +42,8 @@ class OPAManagerCharm(CharmBase):
         # Manifest-related actions
         self.framework.observe(self.on.list_resources_action, self._list_resources)
         self.framework.observe(self.on.list_versions_action, self._list_versions)
+
+        self.framework.observe(self.on.stop, self._cleanup)
         self.framework.observe(self.on.stop, self._cleanup)
 
     @property
@@ -95,15 +99,20 @@ class OPAManagerCharm(CharmBase):
             },
         }
 
+    def _install_or_upgrade(self, _event):
+        if not self.unit.is_leader():
+            return
+        self.manifests.apply_manifests()
+
     def _on_gatekeeper_pebble_ready(self, event):
         if self.is_running:
             logger.info("Gatekeeper already started")
             return
 
         container = event.workload
+        self._patch_statefulset()
         layer = self._gatekeeper_layer()
         container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
-        self._apply_spec()
         container.autostart()
         self._on_update_status(event)
 
@@ -113,7 +122,6 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = event.workload
-        self._apply_spec()
         container.stop()
         container.start()
         self._on_update_status(event)
@@ -126,19 +134,61 @@ class OPAManagerCharm(CharmBase):
         else:
             self.unit.status = ActiveStatus()
 
-    def _apply_spec(self):
-        if not self.unit.is_leader():
-            return
-        self.manifests.apply_manifests()
-
     def _cleanup(self, _event):
-        self.manifests.delete_manifests(ignore_unauthorized=True)
+        self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
 
     def _list_resources(self, event):
         return self.collector.list_resources(event, None, None)
 
     def _list_versions(self, event):
         self.collector.list_versions(event)
+
+    def _patch_statefulset(self):
+        """
+        Patch the statefulset to make it reflect the vanilla gatekeeper deployment spec
+        """
+        if not self.unit.is_leader():
+            return
+        logger.info("Patching the statefulset")
+
+        pod_spec_patch = {
+            "affinity": {
+                "podAntiAffinity": {
+                    "preferredDuringSchedulingIgnoredDuringExecution": [
+                        {
+                            "podAffinityTerm": {
+                                "labelSelector": {
+                                    "matchExpressions": [
+                                        {
+                                            "key": "app.kubernetes.io/name",
+                                            "operator": "In",
+                                            "values": ["gatekeeper-controller-manager"],
+                                        }
+                                    ],
+                                },
+                                "topologyKey": "kubernetes.io/hostname",
+                            },
+                            "weight": 100,
+                        },
+                    ],
+                },
+            },
+            "priorityClassName": "system-cluster-critical",
+            "volumes": [
+                {
+                    "name": "cert",
+                    "secret": {
+                        "defaultMode": 420,
+                        "secretName": "gatekeeper-webhook-server-cert",
+                    },
+                },
+            ],
+        }
+
+        patch = {"spec": {"template": {"spec": pod_spec_patch}}}
+        self.client.patch(
+            StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
+        )
 
 
 if __name__ == "__main__":
