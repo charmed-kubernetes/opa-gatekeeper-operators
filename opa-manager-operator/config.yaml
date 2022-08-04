@@ -5,4 +5,8 @@ options:
     description: |
       Image pull policy. Valid values are Always, IfNotPresent and Never
     default: "Always"
+  release:
+    default: v3.9.0
+    description: Version of OPA controller manager to deploy
+    type: string
 

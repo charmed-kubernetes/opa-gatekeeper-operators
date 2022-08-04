@@ -1,6 +1,11 @@
-# Fetched from
-# https://raw.githubusercontent.com/open-policy-agent/gatekeeper/v3.9.0/manifest_staging/deploy/gatekeeper.yaml
-
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    admission.gatekeeper.sh/ignore: no-self-managing
+    control-plane: controller-manager
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-system
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -8,7 +13,7 @@ metadata:
   labels:
     gatekeeper.sh/system: "yes"
   name: gatekeeper-critical-pods
-  namespace: {{ namespace }}
+  namespace: gatekeeper-system
 spec:
   hard:
     pods: 100
@@ -83,9 +88,9 @@ spec:
                 description: Match allows the user to limit which resources get mutated. Individual match criteria are AND-ed together. An undefined match criteria matches everything.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -169,9 +174,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -321,9 +326,9 @@ spec:
                 description: Match allows the user to limit which resources get mutated. Individual match criteria are AND-ed together. An undefined match criteria matches everything.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -407,9 +412,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -568,9 +573,9 @@ spec:
                 description: Match selects objects to apply mutations to.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -654,9 +659,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -772,9 +777,9 @@ spec:
                 description: Match selects objects to apply mutations to.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -858,9 +863,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -1001,7 +1006,7 @@ spec:
                   properties:
                     excludedNamespaces:
                       items:
-                        description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                        description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                         pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                         type: string
                       type: array
@@ -1594,9 +1599,9 @@ spec:
                 description: Match allows the user to limit which resources get mutated. Individual match criteria are AND-ed together. An undefined match criteria matches everything.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -1680,9 +1685,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -1805,9 +1810,9 @@ spec:
                 description: Match allows the user to limit which resources get mutated. Individual match criteria are AND-ed together. An undefined match criteria matches everything.
                 properties:
                   excludedNamespaces:
-                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'ExcludedNamespaces is a list of namespace names. If defined, a constraint only applies to resources not in a listed namespace. ExcludedNamespaces also supports a prefix or suffix based glob.  For example, `excludedNamespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `excludedNamespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -1891,9 +1896,9 @@ spec:
                         type: object
                     type: object
                   namespaces:
-                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `{{ namespace }}`.'
+                    description: 'Namespaces is a list of namespace names. If defined, a constraint only applies to resources in a listed namespace.  Namespaces also supports a prefix or suffix based glob.  For example, `namespaces: [kube-*]` matches both `kube-system` and `kube-public`, and `namespaces: [*-system]` matches both `kube-system` and `gatekeeper-system`.'
                     items:
-                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "{{ namespace }}".  The asterisk is required for wildcard matching.'
+                      description: 'A string that supports globbing at its front or end. Ex: "kube-*" will match "kube-system" or "kube-public", "*-system" will match "kube-system" or "gatekeeper-system".  The asterisk is required for wildcard matching.'
                       pattern: ^(\*|\*-)?[a-z0-9]([-a-z0-9]*[a-z0-9])?(\*|-\*)?$
                       type: string
                     type: array
@@ -2110,6 +2115,14 @@ status:
   conditions: []
   storedVersions: []
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+---
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
@@ -2150,7 +2163,7 @@ metadata:
   labels:
     gatekeeper.sh/system: "yes"
   name: gatekeeper-manager-role
-  namespace: {{ namespace }}
+  namespace: gatekeeper-system
 rules:
 - apiGroups:
   - ""
@@ -2338,15 +2351,15 @@ metadata:
   labels:
     gatekeeper.sh/system: "yes"
   name: gatekeeper-manager-rolebinding
-  namespace: {{ namespace }}
+  namespace: gatekeeper-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: gatekeeper-manager-role
 subjects:
 - kind: ServiceAccount
-  name: gatekeeper-controller-manager
-  namespace: {{ namespace }}
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -2360,8 +2373,256 @@ roleRef:
   name: gatekeeper-manager-role
 subjects:
 - kind: ServiceAccount
+  name: gatekeeper-admin
+  namespace: gatekeeper-system
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-webhook-server-cert
+  namespace: gatekeeper-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-webhook-service
+  namespace: gatekeeper-system
+spec:
+  ports:
+  - name: https-webhook-server
+    port: 443
+    targetPort: webhook-server
+  selector:
+    control-plane: controller-manager
+    gatekeeper.sh/operation: webhook
+    gatekeeper.sh/system: "yes"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: audit-controller
+    gatekeeper.sh/operation: audit
+    gatekeeper.sh/system: "yes"
+  name: gatekeeper-audit
+  namespace: gatekeeper-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: audit-controller
+      gatekeeper.sh/operation: audit
+      gatekeeper.sh/system: "yes"
+  template:
+    metadata:
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/manager: runtime/default
+      labels:
+        control-plane: audit-controller
+        gatekeeper.sh/operation: audit
+        gatekeeper.sh/system: "yes"
+    spec:
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --operation=audit
+        - --operation=status
+        - --operation=mutation-status
+        - --logtostderr
+        - --disable-opa-builtin={http.send}
+        - --disable-cert-rotation
+        command:
+        - /manager
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: CONTAINER_NAME
+          value: manager
+        image: openpolicyagent/gatekeeper:v3.9.0
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+        name: manager
+        ports:
+        - containerPort: 8888
+          name: metrics
+          protocol: TCP
+        - containerPort: 9090
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 9090
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+          runAsGroup: 999
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /certs
+          name: cert
+          readOnly: true
+        - mountPath: /tmp/audit
+          name: tmp-volume
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      serviceAccountName: gatekeeper-admin
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: gatekeeper-webhook-server-cert
+      - emptyDir: {}
+        name: tmp-volume
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+    gatekeeper.sh/operation: webhook
+    gatekeeper.sh/system: "yes"
   name: gatekeeper-controller-manager
-  namespace: {{ namespace }}
+  namespace: gatekeeper-system
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      gatekeeper.sh/operation: webhook
+      gatekeeper.sh/system: "yes"
+  template:
+    metadata:
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/manager: runtime/default
+      labels:
+        control-plane: controller-manager
+        gatekeeper.sh/operation: webhook
+        gatekeeper.sh/system: "yes"
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: gatekeeper.sh/operation
+                  operator: In
+                  values:
+                  - webhook
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      automountServiceAccountToken: true
+      containers:
+      - args:
+        - --port=8443
+        - --logtostderr
+        - --exempt-namespace=gatekeeper-system
+        - --operation=webhook
+        - --operation=mutation-webhook
+        - --disable-opa-builtin={http.send}
+        command:
+        - /manager
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: CONTAINER_NAME
+          value: manager
+        image: openpolicyagent/gatekeeper:v3.9.0
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+        name: manager
+        ports:
+        - containerPort: 8443
+          name: webhook-server
+          protocol: TCP
+        - containerPort: 8888
+          name: metrics
+          protocol: TCP
+        - containerPort: 9090
+          name: healthz
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 9090
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - all
+          readOnlyRootFilesystem: true
+          runAsGroup: 999
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /certs
+          name: cert
+          readOnly: true
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      serviceAccountName: gatekeeper-admin
+      terminationGracePeriodSeconds: 60
+      volumes:
+      - name: cert
+        secret:
+          defaultMode: 420
+          secretName: gatekeeper-webhook-server-cert
 ---
 apiVersion: policy/v1beta1
 kind: PodDisruptionBudget
@@ -2369,12 +2630,14 @@ metadata:
   labels:
     gatekeeper.sh/system: "yes"
   name: gatekeeper-controller-manager
-  namespace: {{ namespace }}
+  namespace: gatekeeper-system
 spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: gatekeeper-controller-manager
+      control-plane: controller-manager
+      gatekeeper.sh/operation: webhook
+      gatekeeper.sh/system: "yes"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -2389,7 +2652,7 @@ webhooks:
   clientConfig:
     service:
       name: gatekeeper-webhook-service
-      namespace: {{ namespace }}
+      namespace: gatekeeper-system
       path: /v1/mutate
   failurePolicy: Ignore
   matchPolicy: Exact
@@ -2424,7 +2687,7 @@ webhooks:
   clientConfig:
     service:
       name: gatekeeper-webhook-service
-      namespace: {{ namespace }}
+      namespace: gatekeeper-system
       path: /v1/admit
   failurePolicy: Ignore
   matchPolicy: Exact
@@ -2466,7 +2729,7 @@ webhooks:
   clientConfig:
     service:
       name: gatekeeper-webhook-service
-      namespace: {{ namespace }}
+      namespace: gatekeeper-system
       path: /v1/admitlabel
   failurePolicy: Fail
   matchPolicy: Exact
