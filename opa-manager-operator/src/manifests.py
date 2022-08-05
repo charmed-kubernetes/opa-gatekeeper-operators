@@ -38,7 +38,7 @@ class ModelNamespace(Patch):
             return
 
         log.info(f"Patching namespace for {obj.kind} {obj.metadata.name}")
-        obj.metadata.namespace = self.manifests.model_name
+        obj.metadata.namespace = self.manifests.model.name
 
 
 class WebhookConfiguration(Patch):
@@ -48,7 +48,7 @@ class WebhookConfiguration(Patch):
         if obj.kind == "ValidatingWebhookConfiguration" or obj.kind == "MutatingWebhookConfiguration":
             for webhook in obj.webhooks:
                 log.info(f"Patching clientConfig service namespace for {obj.kind} {obj.metadata.name}")
-                webhook.clientConfig.service.namespace = self.manifests.model_name
+                webhook.clientConfig.service.namespace = self.manifests.model.name
 
 class RoleBinding(Patch):
     """Update the namespace of any RoleBinding or ClusteRoleBinding subjects to the model name."""
@@ -57,7 +57,7 @@ class RoleBinding(Patch):
         if obj.kind == "RoleBinding" or obj.kind == "ClusterRoleBinding":
             for subject in obj.subjects:
                 log.info(f"Patching subject namespace for {obj.kind} {obj.metadata.name}")
-                subject.namespace = self.manifests.model_name
+                subject.namespace = self.manifests.model.name
 
 
 class ServicePorts(Patch):
@@ -74,7 +74,7 @@ class ServicePorts(Patch):
 
 
 class ControllerManagerManifests(Manifests):
-    def __init__(self, model_name, app_name, charm_config):
+    def __init__(self, charm, charm_config):
 
         manipulations = [
             SubtractEq(self, gatekeeper_system_ns),
@@ -86,7 +86,7 @@ class ControllerManagerManifests(Manifests):
             WebhookConfiguration(self),
             RoleBinding(self),
         ]
-        super().__init__("controller-manager", model_name, app_name, "upstream/controller-manager", manipulations)
+        super().__init__("controller-manager", charm.model, "upstream/controller-manager", manipulations)
         self.charm_config = charm_config
 
     @property

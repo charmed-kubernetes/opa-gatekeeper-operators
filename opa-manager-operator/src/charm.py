@@ -26,7 +26,7 @@ class OPAManagerCharm(CharmBase):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.manifests = ControllerManagerManifests(self.model.name, self.app.name, self.config)
+        self.manifests = ControllerManagerManifests(self, self.config)
         self.collector = Collector(self.manifests)
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
