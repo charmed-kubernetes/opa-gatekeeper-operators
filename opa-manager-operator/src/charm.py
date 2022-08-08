@@ -2,15 +2,15 @@
 import logging
 from pathlib import Path
 
-from lightkube import Client, codecs
+from lightkube import Client
 from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
-from ops.framework import StoredState
 from ops.main import main
+from ops.manifests import Collector
 from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
-from ops.manifests import Collector
+
 from manifests import ControllerManagerManifests
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,6 @@ class OPAManagerCharm(CharmBase):
         self.framework.observe(self.on.list_resources_action, self._list_resources)
         self.framework.observe(self.on.list_versions_action, self._list_versions)
 
-        self.framework.observe(self.on.stop, self._cleanup)
         self.framework.observe(self.on.stop, self._cleanup)
 
     @property
@@ -121,9 +120,9 @@ class OPAManagerCharm(CharmBase):
             logger.info("Gatekeeper is not running")
             return
 
-        container = event.workload
-        container.stop()
-        container.start()
+        container = self.unit.get_container(self._GATEKEEPER_CONTAINER_NAME)
+        container.stop(self._GATEKEEPER_CONTAINER_NAME)
+        container.start(self._GATEKEEPER_CONTAINER_NAME)
         self._on_update_status(event)
 
     def _on_update_status(self, event):
@@ -173,6 +172,18 @@ class OPAManagerCharm(CharmBase):
                     ],
                 },
             },
+            "containers": [
+                {
+                    "name": "gatekeeper",
+                    "volumeMounts": [
+                        {
+                            "mountPath": "/certs",
+                            "name": "cert",
+                            "readOnly": True,
+                        },
+                    ],
+                },
+            ],
             "priorityClassName": "system-cluster-critical",
             "volumes": [
                 {
