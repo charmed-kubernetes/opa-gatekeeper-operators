@@ -1,33 +1,36 @@
-from lightkube.codecs import from_dict
-from ops.manifests import Manifests, ManifestLabel, SubtractEq, Patch
-from typing import Dict
 import logging
+from typing import Dict
+
+from lightkube.codecs import from_dict
+from ops.manifests import ManifestLabel, Manifests, Patch, SubtractEq
 
 log = logging.getLogger(__file__)
 
 audit_controller = from_dict(
-            dict(
-                apiVersion="apps/v1",
-                kind="Deployment",
-                metadata=dict(name="gatekeeper-audit", namespace="gatekeeper-system"),
-            )
-        )
+    dict(
+        apiVersion="apps/v1",
+        kind="Deployment",
+        metadata=dict(name="gatekeeper-audit", namespace="gatekeeper-system"),
+    )
+)
 
 controller_manager = from_dict(
-            dict(
-                apiVersion="apps/v1",
-                kind="Deployment",
-                metadata=dict(name="gatekeeper-controller-manager", namespace="gatekeeper-system"),
-            )
-        )
+    dict(
+        apiVersion="apps/v1",
+        kind="Deployment",
+        metadata=dict(
+            name="gatekeeper-controller-manager", namespace="gatekeeper-system"
+        ),
+    )
+)
 
 gatekeeper_system_ns = from_dict(
-            dict(
-                apiVersion="v1",
-                kind="Namespace",
-                metadata=dict(name="gatekeeper-system"),
-            )
-        )
+    dict(
+        apiVersion="v1",
+        kind="Namespace",
+        metadata=dict(name="gatekeeper-system"),
+    )
+)
 
 
 class ModelNamespace(Patch):
@@ -45,10 +48,16 @@ class WebhookConfiguration(Patch):
     """Update the namespace of any webhook clientConfig services to the model name."""
 
     def __call__(self, obj):
-        if obj.kind == "ValidatingWebhookConfiguration" or obj.kind == "MutatingWebhookConfiguration":
+        if (
+            obj.kind == "ValidatingWebhookConfiguration"
+            or obj.kind == "MutatingWebhookConfiguration"
+        ):
             for webhook in obj.webhooks:
-                log.info(f"Patching clientConfig service namespace for {obj.kind} {obj.metadata.name}")
+                log.info(
+                    f"Patching clientConfig service namespace for {obj.kind} {obj.metadata.name}"
+                )
                 webhook.clientConfig.service.namespace = self.manifests.model.name
+
 
 class RoleBinding(Patch):
     """Update the namespace of any RoleBinding or ClusteRoleBinding subjects to the model name."""
@@ -56,7 +65,9 @@ class RoleBinding(Patch):
     def __call__(self, obj):
         if obj.kind == "RoleBinding" or obj.kind == "ClusterRoleBinding":
             for subject in obj.subjects:
-                log.info(f"Patching subject namespace for {obj.kind} {obj.metadata.name}")
+                log.info(
+                    f"Patching subject namespace for {obj.kind} {obj.metadata.name}"
+                )
                 subject.namespace = self.manifests.model.name
 
 
@@ -73,6 +84,16 @@ class ServicePorts(Patch):
                     port.targetPort = 8443
 
 
+class ServiceSelector(Patch):
+    """Patch the service selector to match the pod's labels"""
+
+    def __call__(self, obj):
+        if obj.metadata.name == "gatekeeper-webhook-service":
+            obj.spec.selector = {
+                "app.kubernetes.io/name": "gatekeeper-controller-manager"
+            }
+
+
 class ControllerManagerManifests(Manifests):
     def __init__(self, charm, charm_config):
 
@@ -83,10 +104,16 @@ class ControllerManagerManifests(Manifests):
             ManifestLabel(self),
             ModelNamespace(self),
             ServicePorts(self),
+            ServiceSelector(self),
             WebhookConfiguration(self),
             RoleBinding(self),
         ]
-        super().__init__("controller-manager", charm.model, "upstream/controller-manager", manipulations)
+        super().__init__(
+            "controller-manager",
+            charm.model,
+            "upstream/controller-manager",
+            manipulations,
+        )
         self.charm_config = charm_config
 
     @property
