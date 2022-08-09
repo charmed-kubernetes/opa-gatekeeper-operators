@@ -43,7 +43,7 @@ class OPAManagerCharm(CharmBase):
         self.framework.observe(self.on.list_resources_action, self._list_resources)
         self.framework.observe(self.on.list_versions_action, self._list_versions)
 
-        self.framework.observe(self.on.stop, self._cleanup)
+        self.framework.observe(self.on.remove, self._cleanup)
 
     @property
     def is_running(self):
@@ -101,6 +101,7 @@ class OPAManagerCharm(CharmBase):
     def _install_or_upgrade(self, _event):
         if not self.unit.is_leader():
             return
+        logger.info("Installing manifest resources ...")
         self.manifests.apply_manifests()
 
     def _on_gatekeeper_pebble_ready(self, event):
@@ -134,6 +135,7 @@ class OPAManagerCharm(CharmBase):
             self.unit.status = ActiveStatus()
 
     def _cleanup(self, _event):
+        logger.info("Cleaning up manifest resources ...")
         self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
 
     def _list_resources(self, event):
