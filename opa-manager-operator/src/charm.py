@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 import logging
-import resource
-from pathlib import Path
 
 from lightkube import Client
 from lightkube.generic_resource import (
@@ -12,7 +10,7 @@ from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
 from ops.manifests import Collector
-from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
+from ops.model import ActiveStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
 

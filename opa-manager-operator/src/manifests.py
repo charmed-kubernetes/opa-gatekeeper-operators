@@ -73,7 +73,8 @@ class RoleBinding(Patch):
 
 class ServicePorts(Patch):
     """Patch target ports to use port numbers instead of named ports.
-    This is an alternative to patching the container ports in the juju-deployed statefulset for the charm
+    This is an alternative to patching the container ports in the juju-deployed
+    statefulset for the charm
     """
 
     def __call__(self, obj):

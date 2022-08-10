@@ -1,32 +1,19 @@
 import logging
-import os
-import unittest
-from pathlib import Path
-from unittest.mock import patch
 
 import ops.testing
-from lightkube.resources.apps_v1 import StatefulSet
-from ops.manifests.manifest import Client
-from ops.testing import Harness
-
-from charm import OPAManagerCharm
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
 
-def test_on_config_changed(harness, lk_client):
+def test_on_config_changed(harness):
     assert harness.charm._on_config_changed({}) is None
 
 
-def test_on_stop(harness, lk_client):
+def test_on_stop(harness):
     assert harness.charm._cleanup({}) is None
 
 
-def test_gatekeeper_pebble_ready(harness, lk_client):
-    container = harness.model.unit.get_container("gatekeeper")
-    container.push = unittest.mock.MagicMock()
-    container.stop = unittest.mock.MagicMock()
-    container.start = unittest.mock.MagicMock()
+def test_gatekeeper_pebble_ready(harness, lk_client, container):
     expected_plan = {
         "checks": {
             "ready": {
@@ -47,7 +34,7 @@ def test_gatekeeper_pebble_ready(harness, lk_client):
                 "--exempt-namespace=gatekeeper-system "
                 "--operation=webhook "
                 "--operation=mutation-webhook "
-                "--disable-opa-builtin={http.send} ",
+                "--disable-opa-builtin={http.send}",
                 "environment": {
                     "CONTAINER_NAME": "gatekeeper",
                     "NAMESPACE": "gatekeeper-model",

@@ -82,7 +82,8 @@ async def test_apply_policy(client):
         if e.value.response.status_code == 500:
             # the constraint has not been created yet, retry
             assert err_msg.startswith(
-                'Internal error occurred: failed calling webhook "check-ignore-label.gatekeeper.sh"'
+                "Internal error occurred: failed calling webhook "
+                '"check-ignore-label.gatekeeper.sh"'
             )
             # We sleep in order to wait for opa to register the constraint
             # TODO: Is there a better way to do this?

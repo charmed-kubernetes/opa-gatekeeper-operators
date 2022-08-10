@@ -2,10 +2,8 @@ import logging
 import os
 from pathlib import Path
 
-import juju.utils
 import pytest
 import pytest_asyncio
-import yaml
 from lightkube import Client, KubeConfig
 
 log = logging.getLogger(__name__)
