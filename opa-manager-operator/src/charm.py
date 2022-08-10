@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 import logging
+import resource
 from pathlib import Path
 
 from lightkube import Client
+from lightkube.generic_resource import (
+    get_generic_resource,
+    load_in_cluster_generic_resources,
+)
 from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
@@ -38,6 +43,9 @@ class OPAManagerCharm(CharmBase):
         )
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
+
+        # Template-related actions
+        self.framework.observe(self.on.list_constraints_action, self._list_constraints)
 
         # Manifest-related actions
         self.framework.observe(self.on.list_resources_action, self._list_resources)
@@ -143,6 +151,28 @@ class OPAManagerCharm(CharmBase):
 
     def _list_versions(self, event):
         self.collector.list_versions(event)
+
+    def _list_constraints(self, event):
+        event.log("Fetching templates")
+        load_in_cluster_generic_resources(self.client)
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        templates = self.client.list(ConstraintTemplate)
+        names = [t.spec["crd"]["spec"]["names"]["kind"] for t in templates]
+        constraint_resources = {
+            name: get_generic_resource("constraints.gatekeeper.sh/v1beta1", name)
+            for name in names
+        }
+
+        def get_resource_name(_resource):
+            return _resource.metadata.name
+
+        constraints = {
+            name.lower(): "\n".join(map(get_resource_name, self.client.list(resource)))
+            for name, resource in constraint_resources.items()
+        }
+        event.set_results(constraints)
 
     def _patch_statefulset(self):
         """

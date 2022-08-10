@@ -2,3 +2,5 @@ list-versions:
   description: List Cloud Provider and Storage Versions supported by this charm
 list-resources:
   description: List resources of configured version
+list-constraints:
+  description: List the gatekeeper templates and corresponding constraints
