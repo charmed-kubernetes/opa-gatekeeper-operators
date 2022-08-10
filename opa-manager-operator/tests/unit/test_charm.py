@@ -56,7 +56,7 @@ def test_gatekeeper_pebble_ready(harness, lk_client, container):
     assert service.is_running()
     assert harness.model.unit.status.name == "active"
 
-    # testing that the dnsPolicy is patched via lightkube
+    # testing that the statefulset is patched via lightkube
     patch = lk_client.patch
     patch.assert_called_once()
 
