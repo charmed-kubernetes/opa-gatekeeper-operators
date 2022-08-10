@@ -1,6 +1,7 @@
 import logging
 
 import ops.testing
+from lightkube.resources.apps_v1 import StatefulSet
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -13,7 +14,7 @@ def test_on_stop(harness):
     assert harness.charm._cleanup({}) is None
 
 
-def test_gatekeeper_pebble_ready(harness, lk_client, container):
+def test_gatekeeper_pebble_ready(harness, lk_client):
     expected_plan = {
         "checks": {
             "ready": {
@@ -59,6 +60,9 @@ def test_gatekeeper_pebble_ready(harness, lk_client, container):
     # testing that the statefulset is patched via lightkube
     patch = lk_client.patch
     patch.assert_called_once()
+    assert patch.call_args[0][0] == StatefulSet
+    assert patch.call_args[1]["name"] == "gatekeeper-controller-manager"
+    assert patch.call_args[1]["namespace"] == "gatekeeper-model"
 
 
 def test_coredns_pebble_ready_already_started(harness, active_container, caplog):
