@@ -85,9 +85,9 @@ async def test_apply_policy(client):
                 "Internal error occurred: failed calling webhook "
                 '"check-ignore-label.gatekeeper.sh"'
             )
-            # We sleep in order to wait for opa to register the constraint
-            # TODO: Is there a better way to do this?
-            log.info("The constraint is not synced yet, going to sleep")
+            # We sleep until the webhook service is ready to accept connections
+            # See https://github.com/open-policy-agent/gatekeeper/issues/1156
+            log.info("Webhook service is not ready yet, going to sleep")
             sleep(3)
             log.info("Retrying...")
             continue

@@ -75,7 +75,7 @@ class OPAManagerCharm(CharmBase):
                     "override": "replace",
                     "summary": "Gatekeeper",
                     "command": "/manager --port=8443 --logtostderr "
-                    "--exempt-namespace=gatekeeper-system --operation=webhook "
+                    f"--exempt-namespace={self.model.name} --operation=webhook "
                     "--operation=mutation-webhook --disable-opa-builtin={http.send}",
                     "startup": "enabled",
                     "environment": {
