@@ -95,6 +95,16 @@ class ServiceSelector(Patch):
             }
 
 
+class PodDisruptionBudgetSelector(Patch):
+    """Patch the PodDisruptionBudget selector to match the pod's labels"""
+
+    def __call__(self, obj):
+        if obj.kind == "PodDisruptionBudget":
+            obj.spec.selector.matchLabels = {
+                "app.kubernetes.io/name": "gatekeeper-controller-manager"
+            }
+
+
 class ControllerManagerManifests(Manifests):
     def __init__(self, charm, charm_config):
 
@@ -106,6 +116,7 @@ class ControllerManagerManifests(Manifests):
             ModelNamespace(self),
             ServicePorts(self),
             ServiceSelector(self),
+            PodDisruptionBudgetSelector(self),
             WebhookConfiguration(self),
             RoleBinding(self),
         ]
