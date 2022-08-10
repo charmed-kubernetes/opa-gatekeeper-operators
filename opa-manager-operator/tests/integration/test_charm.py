@@ -1,115 +1,143 @@
 import logging
+import random
 from pathlib import Path
-import os
-import time
+from time import sleep
+
 import pytest
 import yaml
-import re
-from kubernetes import client, config
-from kubernetes.client.rest import ApiException
-from jinja2 import Template
+from lightkube import codecs
+from lightkube.core.exceptions import ApiError
+from lightkube.generic_resource import (
+    get_generic_resource,
+    load_in_cluster_generic_resources,
+)
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.apiextensions_v1 import CustomResourceDefinition
+from lightkube.resources.core_v1 import Namespace
 
 log = logging.getLogger(__name__)
 
-meta = yaml.safe_load(Path("metadata.yaml").read_text())
-
-KUBECONFIG = os.environ.get("TESTING_KUBECONFIG", "~/.kube/config")
-
-config.load_kube_config(KUBECONFIG)  # TODO: check how to use this with designated file
+metadata = yaml.safe_load(Path("metadata.yaml").read_text())
 
 
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test):
-    charm = await ops_test.build_charm(".")
-    # Due to: https://github.com/juju/python-libjuju/issues/515
-    #  We have to use the k8s API to wait, we cannot use:
-    # ops_test.model.applications['gatekeeper'].units[0].workload_status
-    model_name = ops_test.model_name
-    role_binding_file = Path("/tmp/k8s-rolebinding.yaml")
-    with open("docs/gatekeeper-rb.yaml.template", "r") as fh:
-        template = Template(fh.read())
-        role_binding_file.write_text(
-            template.render(
-                service_account_user=f"system:serviceaccount:{model_name}:opa-manager-test-operator"
+async def test_build_and_deploy(ops_test, charm):
+    model = ops_test.model
+    image = metadata["resources"]["gatekeeper-image"]["upstream-source"]
+
+    await model.deploy(
+        entity_url=charm.resolve(),
+        trust=True,
+        resources={"gatekeeper-image": image},
+    )
+    await model.block_until(
+        lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
+    )
+    await model.wait_for_idle(status="active")
+
+
+@pytest.mark.abort_on_fail
+async def test_apply_policy(client):
+    # Create a template and a constraint
+    load_in_cluster_generic_resources(client)
+    policy = codecs.load_all_yaml(
+        Path("docs/policy-example.yaml").read_text(), create_resources_for_crds=True
+    )[0]
+    ConstraintTemplate = get_generic_resource(
+        "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+    )
+    client.create(policy)
+    # Wait for the template crd to be created from gatekeeper
+    client.wait(
+        CustomResourceDefinition,
+        "k8srequiredlabels.constraints.gatekeeper.sh",
+        for_conditions=("Established",),
+    )
+    load_in_cluster_generic_resources(client)
+    assert client.get(ConstraintTemplate, policy.metadata.name)
+
+    constraint = codecs.load_all_yaml(
+        Path("docs/policy-spec-example.yaml").read_text(),
+        create_resources_for_crds=True,
+    )[0]
+    client.create(constraint)
+
+    load_in_cluster_generic_resources(client)
+    Constraint = get_generic_resource(
+        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
+    )
+    # Verify that the constraint was created
+    assert client.get(Constraint, constraint.metadata.name)
+
+    ns_name = f"test-ns-{random.randint(1, 99999)}"
+    # Verify that the policy is enforced
+    for _ in range(10):
+        with pytest.raises(ApiError) as e:
+            client.create(Namespace(metadata=ObjectMeta(name=ns_name)))
+            log.info("Namespace was created, the policy was not enforced")
+            # The policy was not enforce, clean the workspace
+            client.delete(Namespace, ns_name)
+
+        err_msg = e.value.response.json()["message"]
+        if e.value.response.status_code == 500:
+            # the constraint has not been created yet, retry
+            assert err_msg.startswith(
+                'Internal error occurred: failed calling webhook "check-ignore-label.gatekeeper.sh"'
+            )
+            # We sleep in order to wait for opa to register the constraint
+            # TODO: Is there a better way to do this?
+            log.info("The constraint is not synced yet, going to sleep")
+            sleep(3)
+            log.info("Retrying...")
+            continue
+        assert e.value.response.status_code == 403
+        assert err_msg.startswith(
+            'admission webhook "validation.gatekeeper.sh" denied the request:'
+        )
+        break
+
+    # Test that the namespace with the appropriate label is created
+    client.create(
+        Namespace(
+            metadata=ObjectMeta(
+                name=ns_name,
+                labels=dict(gatekeeper="True"),
             )
         )
-    role_binding = yaml.load_all(role_binding_file.read_text(), Loader=yaml.FullLoader)
-    with client.ApiClient() as api_client:
-        api_instance = client.RbacAuthorizationV1Api(api_client)
-        try:
-            for k8s_obj in role_binding:
-                if k8s_obj["kind"] == "ClusterRoleBinding":
-                    api_instance.create_cluster_role_binding(body=k8s_obj)
-                if k8s_obj["kind"] == "ClusterRole":
-                    api_instance.create_cluster_role(body=k8s_obj)
-        except ApiException as err:
-            if err.status == 409:
-                # ignore "already exists" errors so that we can recover from
-                # partially failed setups
-                pass
-            else:
-                raise
-    resources = {"gatekeeper-image": "openpolicyagent/gatekeeper:v3.2.3"}
-    for series in meta["series"]:
-        await ops_test.model.deploy(
-            charm, application_name="opa-manager-test", series=series, resources=resources
-        )
-    await ops_test.model.wait_for_idle(wait_for_active=True, timeout=60 * 60)
+    )
+    # Clean the workspace
+    client.delete(Namespace, ns_name)
 
 
-
-    with client.ApiClient() as api_client:
-        api_instance = client.CoreV1Api(api_client)
-        try:
-            while True:
-                pods = api_instance.list_namespaced_pod(model_name)
-                pod = [
-                    pod
-                    for pod in pods.items
-                    if re.search(
-                        r"opa-manager-test-(([a-z0-9]){2,}){1}-{1}(([a-z0-9]){2,}){1}",
-                        pod.metadata.name,
-                    )
-                    is not None
-                ][0]
-                if [
-                    condition
-                    for condition in pod.status.conditions
-                    if condition.type == "ContainersReady"
-                ][0].status == "True":
-                    break
-                time.sleep(5)
-        except ApiException:
-            raise
- 
-    ca_cert = ""
-    with client.ApiClient() as api_client:
-        # Create an instance of the API class
-        api_instance = client.CoreV1Api(api_client)
-        name = "gatekeeper-webhook-server-cert"
-
-        ca_cert = api_instance.read_namespaced_secret(name, model_name).data["ca.crt"]
-
-    with client.ApiClient() as api_client:
-        # Create an instance of the API class
-        api_instance = client.AdmissionregistrationV1Api(api_client)
-        name = f"{model_name}-gatekeeper-validating-webhook-configuration"
-        for i in range(1):
-            body = [
-                {
-                    "op": "replace",
-                    "path": f"/webhooks/{i}/clientConfig/caBundle",
-                    "value": f"{ca_cert}",
-                }
-            ]
-
-            api_instance.patch_validating_webhook_configuration(name, body)
+async def test_list_constraints(ops_test):
+    unit = list(ops_test.model.units.values())[0]
+    unit_name = unit.name
+    res = await ops_test.juju(
+        "run-action",
+        unit_name,
+        "list-constraints",
+        "--wait",
+        "-m",
+        ops_test.model.info.name,
+    )
+    res = yaml.full_load(res[1])[unit.tag]
+    assert res["status"] == "completed"
+    assert res["results"] == {"k8srequiredlabels": "ns-must-have-gk"}
 
 
-async def test_status_messages(ops_test):
-    """Validate that the status messages are correct."""
-    expected_messages = {}
+async def test_upgrade(ops_test, charm):
+    model = ops_test.model
+    image = metadata["resources"]["gatekeeper-image"]["upstream-source"]
 
-    for app, message in expected_messages.items():
-        for unit in ops_test.model.applications[app].units:
-            assert unit.workload_status_message == message
+    app = model.applications["gatekeeper-controller-manager"]
+    log.debug("Refreshing the charm")
+    await app.upgrade_charm(
+        path=charm.resolve(),
+        resources={"gatekeeper-image": image},
+    )
+
+    log.debug("Waiting for the charm to come up")
+    await model.block_until(
+        lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
+    )
+    await model.wait_for_idle(status="active")
