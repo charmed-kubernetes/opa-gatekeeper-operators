@@ -1,7 +1,8 @@
+import asyncio
 import logging
 import random
+import time
 from pathlib import Path
-from time import sleep
 
 import pytest
 import yaml
@@ -20,6 +21,24 @@ log = logging.getLogger(__name__)
 metadata = yaml.safe_load(Path("metadata.yaml").read_text())
 
 
+class ModelTimeout(Exception):
+    """Model timeout exception."""
+
+    pass
+
+
+async def wait_for_application(model, app_name, status="active", timeout=60):
+    start = time.time()
+    while True:
+        apps = await model.get_status()
+        app = apps.applications[app_name]
+        if app.status.status == status:
+            return
+        await asyncio.sleep(2)
+        if int(time.time() - start) > timeout:
+            raise ModelTimeout
+
+
 @pytest.mark.abort_on_fail
 async def test_build_and_deploy(ops_test, charm):
     model = ops_test.model
@@ -33,7 +52,12 @@ async def test_build_and_deploy(ops_test, charm):
     await model.block_until(
         lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
     )
-    await model.wait_for_idle(status="active")
+
+    # We don't use wait for idle because we want to wait for the application to be
+    # active and not the units
+    await wait_for_application(
+        model, "gatekeeper-controller-manager", status="active", timeout=120
+    )
 
 
 @pytest.mark.abort_on_fail
@@ -69,46 +93,6 @@ async def test_apply_policy(client):
     # Verify that the constraint was created
     assert client.get(Constraint, constraint.metadata.name)
 
-    ns_name = f"test-ns-{random.randint(1, 99999)}"
-    # Verify that the policy is enforced
-    for _ in range(10):
-        with pytest.raises(ApiError) as e:
-            client.create(Namespace(metadata=ObjectMeta(name=ns_name)))
-            log.info("Namespace was created, the policy was not enforced")
-            # The policy was not enforce, clean the workspace
-            client.delete(Namespace, ns_name)
-
-        err_msg = e.value.response.json()["message"]
-        if e.value.response.status_code == 500:
-            # the constraint has not been created yet, retry
-            assert err_msg.startswith(
-                "Internal error occurred: failed calling webhook "
-                '"check-ignore-label.gatekeeper.sh"'
-            )
-            # We sleep until the webhook service is ready to accept connections
-            # See https://github.com/open-policy-agent/gatekeeper/issues/1156
-            log.info("Webhook service is not ready yet, going to sleep")
-            sleep(3)
-            log.info("Retrying...")
-            continue
-        assert e.value.response.status_code == 403
-        assert err_msg.startswith(
-            'admission webhook "validation.gatekeeper.sh" denied the request:'
-        )
-        break
-
-    # Test that the namespace with the appropriate label is created
-    client.create(
-        Namespace(
-            metadata=ObjectMeta(
-                name=ns_name,
-                labels=dict(gatekeeper="True"),
-            )
-        )
-    )
-    # Clean the workspace
-    client.delete(Namespace, ns_name)
-
 
 async def test_list_constraints(ops_test):
     unit = list(ops_test.model.units.values())[0]
@@ -124,6 +108,36 @@ async def test_list_constraints(ops_test):
     res = yaml.full_load(res[1])[unit.tag]
     assert res["status"] == "completed"
     assert res["results"] == {"k8srequiredlabels": "ns-must-have-gk"}
+
+
+def test_policy_is_enforced(client):
+    # We test whether the policy is being enforced after we test the list
+    # action, in order to give gatekeeper enough time to register the constraint
+    ns_name = f"test-ns-{random.randint(1, 99999)}"
+    # Verify that the policy is enforced
+    with pytest.raises(ApiError) as e:
+        client.create(Namespace(metadata=ObjectMeta(name=ns_name)))
+        log.info("Namespace was created, the policy was not enforced")
+        # The policy was not enforce, clean the workspace
+        client.delete(Namespace, ns_name)
+
+    err_msg = e.value.response.json()["message"]
+    assert e.value.response.status_code == 403
+    assert err_msg.startswith(
+        'admission webhook "validation.gatekeeper.sh" denied the request:'
+    )
+
+    # Test that the namespace with the appropriate label is created
+    client.create(
+        Namespace(
+            metadata=ObjectMeta(
+                name=ns_name,
+                labels=dict(gatekeeper="True"),
+            )
+        )
+    )
+    # Clean the workspace
+    client.delete(Namespace, ns_name)
 
 
 async def test_upgrade(ops_test, charm):

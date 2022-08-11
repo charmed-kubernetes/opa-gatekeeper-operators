@@ -1,8 +1,8 @@
 import logging
+from unittest.mock import MagicMock
 
 import ops.testing
 from lightkube.resources.apps_v1 import StatefulSet
-from unittest.mock import MagicMock
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
