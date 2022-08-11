@@ -1,21 +1,35 @@
 #!/usr/bin/env python3
 import logging
-from pathlib import Path
 
-# Shouldn't this work without `lib.`?
-from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
-from lightkube import Client, codecs
-from lightkube.models.core_v1 import ServicePort
+from lightkube import Client
+from lightkube.generic_resource import (
+    get_generic_resource,
+    load_in_cluster_generic_resources,
+)
 from lightkube.resources.apps_v1 import StatefulSet
+from lightkube.models.core_v1 import ServicePort
 from ops.charm import CharmBase
-from ops.framework import StoredState
 from ops.main import main
-from ops.model import ActiveStatus, MaintenanceStatus, ModelError, WaitingStatus
+from ops.manifests import Collector
+from ops.model import ActiveStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
+
+from manifests import ControllerManagerManifests
 
 logger = logging.getLogger(__name__)
 
+scrape_config = [
+    {
+        "static_configs": [
+            {
+                "targets": ["*:8888"]
+            }
+        ]
+    }
+]
 
 class OPAManagerCharm(CharmBase):
     """
@@ -26,20 +40,32 @@ class OPAManagerCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
-        sp = ServicePort(443, name="https-webhook-server", targetPort="webhook-server")
-        self.service_patcher = KubernetesServicePatch(
-            self,
-            [sp],
-            service_name="gatekeeper-webhook-service",
-        )
+
+        self.metrics_endpoint = MetricsEndpointProvider(self, "metrics-endpoint", jobs=scrape_config)
+        metrics = ServicePort(8888, protocol="TCP", name="metrics")
+        self.service_patcher = KubernetesServicePatch(self, [metrics])
+
+        self.manifests = ControllerManagerManifests(self, self.config)
+        self.collector = Collector(self.manifests)
 
         self.client = Client(field_manager=self.app.name, namespace=self.model.name)
 
+        self.framework.observe(self.on.install, self._install_or_upgrade)
+        self.framework.observe(self.on.upgrade_charm, self._install_or_upgrade)
         self.framework.observe(
             self.on.gatekeeper_pebble_ready, self._on_gatekeeper_pebble_ready
         )
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.update_status, self._on_update_status)
+
+        # Template-related actions
+        self.framework.observe(self.on.list_constraints_action, self._list_constraints)
+
+        # Manifest-related actions
+        self.framework.observe(self.on.list_resources_action, self._list_resources)
+        self.framework.observe(self.on.list_versions_action, self._list_versions)
+
+        self.framework.observe(self.on.remove, self._cleanup)
 
     @property
     def is_running(self):
@@ -65,7 +91,7 @@ class OPAManagerCharm(CharmBase):
                     "override": "replace",
                     "summary": "Gatekeeper",
                     "command": "/manager --port=8443 --logtostderr "
-                    "--exempt-namespace=gatekeeper-system --operation=webhook "
+                    f"--exempt-namespace={self.model.name} --operation=webhook "
                     "--operation=mutation-webhook --disable-opa-builtin={http.send}",
                     "startup": "enabled",
                     "environment": {
@@ -76,23 +102,29 @@ class OPAManagerCharm(CharmBase):
                     },
                 },
             },
-            # "checks":{
-            #     "up": {
-            #         "override": "replace",
-            #         "level": "alive",
-            #         "http": {
-            #             "url": "http://localhost:9090/healthz",
-            #         }
-            #     },
-            #     "ready": {
-            #         "override": "replace",
-            #         "level": "ready",
-            #         "http": {
-            #             "url": "http://localhost:9090/readyz",
-            #         }
-            #     },
-            # }
+            "checks": {
+                "up": {
+                    "override": "replace",
+                    "level": "alive",
+                    "http": {
+                        "url": "http://localhost:9090/healthz",
+                    },
+                },
+                "ready": {
+                    "override": "replace",
+                    "level": "ready",
+                    "http": {
+                        "url": "http://localhost:9090/readyz",
+                    },
+                },
+            },
         }
+
+    def _install_or_upgrade(self, _event):
+        if not self.unit.is_leader():
+            return
+        logger.info("Installing manifest resources ...")
+        self.manifests.apply_manifests()
 
     def _on_gatekeeper_pebble_ready(self, event):
         if self.is_running:
@@ -100,15 +132,20 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = event.workload
-        layer = self._gatekeeper_layer()
-        if container.can_connect():
-            services = container.get_plan().to_dict().get("services", {})
-            if services != layer["services"]:
-                container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer)
-                container.autostart()
-        self._apply_spec()
         self._patch_statefulset()
+        layer = self._gatekeeper_layer()
+        container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
+        container.autostart()
+        self._on_update_status(event)
 
+    def _on_config_changed(self, event):
+        if not self.is_running:
+            logger.info("Gatekeeper is not running")
+            return
+
+        container = self.unit.get_container(self._GATEKEEPER_CONTAINER_NAME)
+        container.stop(self._GATEKEEPER_CONTAINER_NAME)
+        container.start(self._GATEKEEPER_CONTAINER_NAME)
         self._on_update_status(event)
 
     def _on_update_status(self, event):
@@ -119,19 +156,37 @@ class OPAManagerCharm(CharmBase):
         else:
             self.unit.status = ActiveStatus()
 
-    def _apply_spec(self):
-        if not self.unit.is_leader():
-            return
-        logger.info("Applying gatekeeper.yaml")
+    def _cleanup(self, _event):
+        logger.info("Cleaning up manifest resources ...")
+        self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
 
-        with Path("files", "gatekeeper.yaml").open() as f:
-            for policy in codecs.load_all_yaml(
-                f,
-                context={"namespace": self.model.name},
-                create_resources_for_crds=True,
-            ):
-                # TODO: This may throw, should we catch it and change the status?
-                self.client.apply(policy, force=True)
+    def _list_resources(self, event):
+        return self.collector.list_resources(event, None, None)
+
+    def _list_versions(self, event):
+        self.collector.list_versions(event)
+
+    def _list_constraints(self, event):
+        event.log("Fetching templates")
+        load_in_cluster_generic_resources(self.client)
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        templates = self.client.list(ConstraintTemplate)
+        names = [t.spec["crd"]["spec"]["names"]["kind"] for t in templates]
+        constraint_resources = {
+            name: get_generic_resource("constraints.gatekeeper.sh/v1beta1", name)
+            for name in names
+        }
+
+        def get_resource_name(_resource):
+            return _resource.metadata.name
+
+        constraints = {
+            name.lower(): "\n".join(map(get_resource_name, self.client.list(resource)))
+            for name, resource in constraint_resources.items()
+        }
+        event.set_results(constraints)
 
     def _patch_statefulset(self):
         """
@@ -150,9 +205,9 @@ class OPAManagerCharm(CharmBase):
                                 "labelSelector": {
                                     "matchExpressions": [
                                         {
-                                            "key": "gatekeeper.sh/operation",
+                                            "key": "app.kubernetes.io/name",
                                             "operator": "In",
-                                            "values": ["webhook"],
+                                            "values": ["gatekeeper-controller-manager"],
                                         }
                                     ],
                                 },
@@ -173,25 +228,9 @@ class OPAManagerCharm(CharmBase):
                             "readOnly": True,
                         },
                     ],
-                    "ports": [
-                        {
-                            "containerPort": 8443,
-                            "name": "webhook-server",
-                            "protocol": "TCP",
-                        },
-                        {
-                            "containerPort": 8888,
-                            "name": "metrics",
-                            "protocol": "TCP",
-                        },
-                        {
-                            "containerPort": 9090,
-                            "name": "healthz",
-                            "protocol": "TCP",
-                        },
-                    ],
                 },
             ],
+            "priorityClassName": "system-cluster-critical",
             "volumes": [
                 {
                     "name": "cert",
@@ -207,12 +246,6 @@ class OPAManagerCharm(CharmBase):
         self.client.patch(
             StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
         )
-
-    def _on_config_changed(self, event):
-        """
-        Set a new Juju pod specification
-        """
-        logger.info("Config changed")
 
 
 if __name__ == "__main__":

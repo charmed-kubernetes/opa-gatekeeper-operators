@@ -7,5 +7,5 @@ series: [kubernetes]
 resources:
   gatekeeper-image:
     type: oci-image
-    description: Gatekeeper image
-    upstream-source: openpolicyagent/gatekeeper:v3.2.3
+    description: 'Gatekeeper image'
+    upstream-source: "openpolicyagent/gatekeeper:v3.2.3"

@@ -35,19 +35,22 @@ $ juju add-model ${NAMESPACE}
 ###  Deploy
 
 ```
-$ juju deploy gatekeeper-audit --channel=beta
-$ juju deploy gatekeeper-manager --channel=beta
+$ juju deploy --trust gatekeeper-controller-manager
 
 ```
 
-
-### Post deployment steps
-
+### Metrics
+Gatekeeper Controller Manager metrics can be integrated with a deployed
+[prometheus-k8s operator](https://charmhub.io/prometheus-k8s) using the following command:
+```commandline
+$ juju relate gatekeeper-controller-manager prometheus-k8s
 ```
-$ NAMESPACE=your-namespace
-$ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
 
-$ for i in {0..1}; do kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
+If you would like to rely on the [grafana-agent-k8s operator](https://charmhub.io/grafana-agent-k8s) to push metrics, 
+you can use the commands below:
+```commandline
+$ juju relate grafana-agent-k8s gatekeeper-controller-manager 
+$ juju relate grafana-agent-k8s:send-remote-write prometheus-k8s:receive-remote-write
 ```
 
 ## Developing
@@ -63,14 +66,3 @@ To get started ensure you have
 ```
 $ tox -e lint,unit,integration
 ```
-## Development Environment Installation
-
-### Prerequisites
-
-
-1. [Install `microk8s`](https://microk8s.io/)
-1. [Install `charmcraft`](https://github.com/canonical/charmcraft)
-1. Create a cluster: `microk8s install --cpu=4 --mem=8`
-1. Add the required addons: `microk8s enable storage dns`
-1. Export the current kubeconfig: `microk8s config > kube.conf; export KUBECONFIG=kube.conf`
-

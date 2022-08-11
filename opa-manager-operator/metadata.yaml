@@ -11,3 +11,6 @@ resources:
     type: oci-image
     description: Gatekeeper image
     upstream-source: openpolicyagent/gatekeeper:v3.9.0
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
