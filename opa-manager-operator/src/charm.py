@@ -19,6 +19,8 @@ from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServ
 
 from manifests import ControllerManagerManifests
 
+from manifests import ControllerManagerManifests
+
 logger = logging.getLogger(__name__)
 
 scrape_config = [
@@ -40,6 +42,7 @@ class OPAManagerCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+
 
         self.metrics_endpoint = MetricsEndpointProvider(self, "metrics-endpoint", jobs=scrape_config)
         metrics = ServicePort(8888, protocol="TCP", name="metrics")
@@ -160,7 +163,7 @@ class OPAManagerCharm(CharmBase):
         logger.info("Cleaning up manifest resources ...")
         self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
 
-    def _list_resources(self, event):
+     def _list_resources(self, event):
         return self.collector.list_resources(event, None, None)
 
     def _list_versions(self, event):
