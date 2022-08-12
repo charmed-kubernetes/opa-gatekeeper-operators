@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import logging
 
+from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from lightkube import Client
 from lightkube.generic_resource import (
     get_generic_resource,
     load_in_cluster_generic_resources,
 )
+from lightkube.models.core_v1 import ServicePort
 from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
@@ -18,6 +21,8 @@ from manifests import ControllerManagerManifests
 
 logger = logging.getLogger(__name__)
 
+scrape_config = [{"static_configs": [{"targets": ["*:8888"]}]}]
+
 
 class OPAManagerCharm(CharmBase):
     """
@@ -28,6 +33,12 @@ class OPAManagerCharm(CharmBase):
 
     def __init__(self, *args):
         super().__init__(*args)
+
+        self.metrics_endpoint = MetricsEndpointProvider(
+            self, "metrics-endpoint", jobs=scrape_config
+        )
+        metrics = ServicePort(8888, protocol="TCP", name="metrics")
+        self.service_patcher = KubernetesServicePatch(self, [metrics])
 
         self.manifests = ControllerManagerManifests(self, self.config)
         self.collector = Collector(self.manifests)

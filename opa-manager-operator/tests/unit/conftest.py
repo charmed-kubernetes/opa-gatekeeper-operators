@@ -14,6 +14,12 @@ def lk_client():
             yield mock_lightkube.return_value
 
 
+@pytest.fixture(autouse=True)
+def mocked_service_patch(mocker):
+    mocked_service_patch = mocker.patch("charm.KubernetesServicePatch")
+    yield mocked_service_patch
+
+
 @pytest.fixture
 def harness(mocker):
     harness = Harness(OPAManagerCharm)
