@@ -20,8 +20,7 @@ def test_on_install(harness, lk_client, monkeypatch):
 
 def test_on_config_changed(harness, active_container):
     assert harness.charm._on_config_changed({}) is None
-    active_container.stop.assert_called_once()
-    active_container.start.assert_called_once()
+    active_container.restart.assert_called_once()
 
 
 def test_on_remove(harness, monkeypatch):
@@ -52,7 +51,8 @@ def test_gatekeeper_pebble_ready(harness, lk_client):
                 "--exempt-namespace=gatekeeper-model "
                 "--operation=webhook "
                 "--operation=mutation-webhook "
-                "--disable-opa-builtin={http.send}",
+                "--disable-opa-builtin={http.send} "
+                "--log-level INFO",
                 "environment": {
                     "CONTAINER_NAME": "gatekeeper",
                     "NAMESPACE": "gatekeeper-model",
@@ -86,3 +86,45 @@ def test_gatekeeper_pebble_ready_already_started(harness, active_container, capl
     with caplog.at_level(logging.INFO):
         harness.charm.on.gatekeeper_pebble_ready.emit(active_container)
     assert "Gatekeeper already started" in caplog.text
+
+
+def test_config_changed(harness, active_container, caplog):
+    harness.update_config({"log-level": "DEBUG"})
+    expected_plan = {
+        "checks": {
+            "ready": {
+                "http": {"url": "http://localhost:9090/readyz"},
+                "level": "ready",
+                "override": "replace",
+            },
+            "up": {
+                "http": {"url": "http://localhost:9090/healthz"},
+                "level": "alive",
+                "override": "replace",
+            },
+        },
+        "description": "pebble config layer for Gatekeeper",
+        "services": {
+            "gatekeeper": {
+                "command": "/manager --port=8443 --logtostderr "
+                "--exempt-namespace=gatekeeper-model "
+                "--operation=webhook "
+                "--operation=mutation-webhook "
+                "--disable-opa-builtin={http.send} "
+                "--log-level DEBUG",
+                "environment": {
+                    "CONTAINER_NAME": "gatekeeper",
+                    "NAMESPACE": "gatekeeper-model",
+                    "POD_NAME": "gatekeeper-controller-manager-0",
+                    "POD_NAMESPACE": "gatekeeper-model",
+                },
+                "override": "replace",
+                "startup": "enabled",
+                "summary": "Gatekeeper",
+            }
+        },
+        "summary": "Gatekeeper layer",
+    }
+    actual_plan = harness.charm._gatekeeper_layer()
+    assert expected_plan == actual_plan
+    active_container.restart.assert_called_once()

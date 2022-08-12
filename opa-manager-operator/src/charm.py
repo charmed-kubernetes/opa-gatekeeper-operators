@@ -87,7 +87,8 @@ class OPAManagerCharm(CharmBase):
                     "summary": "Gatekeeper",
                     "command": "/manager --port=8443 --logtostderr "
                     f"--exempt-namespace={self.model.name} --operation=webhook "
-                    "--operation=mutation-webhook --disable-opa-builtin={http.send}",
+                    "--operation=mutation-webhook --disable-opa-builtin={http.send} "
+                    f"--log-level {self.config['log-level']}",
                     "startup": "enabled",
                     "environment": {
                         "POD_NAMESPACE": self.model.name,
@@ -139,8 +140,9 @@ class OPAManagerCharm(CharmBase):
             return
 
         container = self.unit.get_container(self._GATEKEEPER_CONTAINER_NAME)
-        container.stop(self._GATEKEEPER_CONTAINER_NAME)
-        container.start(self._GATEKEEPER_CONTAINER_NAME)
+        layer = self._gatekeeper_layer()
+        container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
+        container.restart(self._GATEKEEPER_CONTAINER_NAME)
         self._on_update_status(event)
 
     def _on_update_status(self, event):

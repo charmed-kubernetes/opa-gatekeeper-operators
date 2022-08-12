@@ -34,9 +34,7 @@ def harness(mocker):
 @pytest.fixture()
 def container(harness, mocker):
     container = harness.model.unit.get_container("gatekeeper")
-    container.push = mocker.MagicMock()
-    container.stop = mocker.MagicMock()
-    container.start = mocker.MagicMock()
+    container.restart = mocker.MagicMock()
     return container
 
 
