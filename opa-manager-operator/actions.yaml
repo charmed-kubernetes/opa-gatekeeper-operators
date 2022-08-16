@@ -2,5 +2,7 @@ list-versions:
   description: List Cloud Provider and Storage Versions supported by this charm
 list-resources:
   description: List resources of configured version
+reconcile-resources:
+  description: Reconcile the kubernetes resources if some of them were somehow deleted
 list-constraints:
   description: List the gatekeeper templates and corresponding constraints

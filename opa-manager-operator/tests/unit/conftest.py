@@ -20,6 +20,21 @@ def mocked_service_patch(mocker):
     yield mocked_service_patch
 
 
+@pytest.fixture(autouse=True)
+def mock_installed_resources(monkeypatch):
+    mocked_resources = mock.MagicMock(
+        return_value=frozenset({"2": None, "3": None}.keys())
+    )
+    monkeypatch.setattr(
+        "manifests.ControllerManagerManifests.resources", mocked_resources
+    )
+    monkeypatch.setattr(
+        "manifests.ControllerManagerManifests.installed_resources",
+        lambda _: mocked_resources,
+    )
+    return mocked_resources
+
+
 @pytest.fixture
 def harness(mocker):
     harness = Harness(OPAManagerCharm)

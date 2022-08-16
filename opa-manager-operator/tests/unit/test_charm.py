@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import ops.testing
 from lightkube.resources.apps_v1 import StatefulSet
+from ops.model import BlockedStatus
 
 ops.testing.SIMULATE_CAN_CONNECT = True
 
@@ -30,7 +31,25 @@ def test_on_remove(harness, monkeypatch):
     mock.assert_called_once()
 
 
-def test_gatekeeper_pebble_ready(harness, lk_client):
+def test_reconciliation_required(harness, monkeypatch):
+    mocked_resources = MagicMock(return_value={"1": None, "2": None, "3": None}.keys())
+    mocked_installed_resources = MagicMock(
+        return_value=frozenset({"2": None, "3": None}.keys())
+    )
+    monkeypatch.setattr(
+        "manifests.ControllerManagerManifests.resources", mocked_resources
+    )
+    monkeypatch.setattr(
+        "manifests.ControllerManagerManifests.installed_resources",
+        mocked_installed_resources,
+    )
+
+    harness.charm.on.update_status.emit()
+
+    assert isinstance(harness.charm.unit.status, BlockedStatus)
+
+
+def test_gatekeeper_pebble_ready(harness, lk_client, mock_installed_resources):
     expected_plan = {
         "checks": {
             "ready": {

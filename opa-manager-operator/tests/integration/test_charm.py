@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import random
 import time
@@ -27,12 +28,32 @@ class ModelTimeout(Exception):
     pass
 
 
+@contextlib.asynccontextmanager
+async def fast_forward(ops_test, interval: str = "5s"):
+    # temporarily speed up update-status firing rate
+    await ops_test.model.set_config({"update-status-hook-interval": interval})
+    yield
+    await ops_test.model.set_config({"update-status-hook-interval": "60m"})
+
+
 async def wait_for_application(model, app_name, status="active", timeout=60):
     start = time.time()
     while True:
         apps = await model.get_status()
         app = apps.applications[app_name]
         if app.status.status == status:
+            return
+        await asyncio.sleep(2)
+        if int(time.time() - start) > timeout:
+            raise ModelTimeout
+
+
+async def wait_for_workload_status(model, app_name, status="active", timeout=60):
+    start = time.time()
+    while True:
+        apps = await model.get_status()
+        app = apps.applications[app_name]
+        if all(unit.workload_status.status == status for unit in app.units.values()):
             return
         await asyncio.sleep(2)
         if int(time.time() - start) > timeout:
@@ -138,6 +159,39 @@ def test_policy_is_enforced(client):
     )
     # Clean the workspace
     client.delete(Namespace, ns_name)
+
+
+async def test_reconciliation_required(ops_test, client):
+    model = ops_test.model
+    client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
+
+    async with fast_forward(ops_test, interval="5s"):
+        await wait_for_workload_status(
+            model, "gatekeeper-controller-manager", status="blocked"
+        )
+
+    apps = await model.get_status()
+    app = apps.applications["gatekeeper-controller-manager"]
+    unit = list(app.units.values())[0]
+    assert unit.workload_status.status == "blocked"
+
+    unit = list(ops_test.model.units.values())[0]
+    unit_name = unit.name
+    res = await ops_test.juju(
+        "run-action",
+        unit_name,
+        "reconcile-resources",
+        "--wait",
+        "-m",
+        ops_test.model.info.name,
+    )
+
+    res = yaml.full_load(res[1])[unit.tag]
+    assert res["status"] == "completed"
+    apps = await model.get_status()
+    app = apps.applications["gatekeeper-controller-manager"]
+    unit = list(app.units.values())[0]
+    assert unit.workload_status.status == "active"
 
 
 async def test_upgrade(ops_test, charm):

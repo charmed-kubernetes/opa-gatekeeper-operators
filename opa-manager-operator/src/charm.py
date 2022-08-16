@@ -13,7 +13,7 @@ from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
 from ops.manifests import Collector
-from ops.model import ActiveStatus, ModelError, WaitingStatus
+from ops.model import ActiveStatus, BlockedStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
 
@@ -59,6 +59,9 @@ class OPAManagerCharm(CharmBase):
         # Manifest-related actions
         self.framework.observe(self.on.list_resources_action, self._list_resources)
         self.framework.observe(self.on.list_versions_action, self._list_versions)
+        self.framework.observe(
+            self.on.reconcile_resources_action, self._reconcile_resources
+        )
 
         self.framework.observe(self.on.remove, self._cleanup)
 
@@ -150,6 +153,11 @@ class OPAManagerCharm(CharmBase):
         logger.info("Update status")
         if not self.is_running:
             self.unit.status = WaitingStatus("Gatekeeper is not running")
+        elif self.manifests.resources != self.manifests.installed_resources():
+            self.unit.status = BlockedStatus(
+                "Missing resources, to reconcile run: "
+                "`juju run-action {unit_name} reconcile-resources`"
+            )
         else:
             self.unit.status = ActiveStatus()
 
@@ -162,6 +170,12 @@ class OPAManagerCharm(CharmBase):
 
     def _list_versions(self, event):
         self.collector.list_versions(event)
+
+    def _reconcile_resources(self, event):
+        event.log("Reconciling resources")
+        self.collector.apply_missing_resources(event, None, None)
+        event.log("Updating status")
+        self._on_update_status(event)
 
     def _list_constraints(self, event):
         event.log("Fetching templates")
