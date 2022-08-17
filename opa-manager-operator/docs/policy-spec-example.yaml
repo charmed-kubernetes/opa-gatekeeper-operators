@@ -1,11 +1,11 @@
 apiVersion: constraints.gatekeeper.sh/v1beta1
-kind: ExamplePolicy
+kind: K8sRequiredLabels
 metadata:
-  name: example-policy
+  name: ns-must-have-gk
 spec:
   match:
     kinds:
       - apiGroups: [""]
-        kinds: ["Pod"]
+        kinds: ["Namespace"]
   parameters:
     labels: ["gatekeeper"]
