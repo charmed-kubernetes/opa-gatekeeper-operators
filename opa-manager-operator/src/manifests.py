@@ -91,7 +91,7 @@ class ServiceSelector(Patch):
     def __call__(self, obj):
         if obj.metadata.name == "gatekeeper-webhook-service":
             obj.spec.selector = {
-                "app.kubernetes.io/name": "gatekeeper-controller-manager"
+                "app.kubernetes.io/name": self.manifests.model.app.name
             }
 
 
@@ -101,7 +101,7 @@ class PodDisruptionBudgetSelector(Patch):
     def __call__(self, obj):
         if obj.kind == "PodDisruptionBudget":
             obj.spec.selector.matchLabels = {
-                "app.kubernetes.io/name": "gatekeeper-controller-manager"
+                "app.kubernetes.io/name": self.manifests.model.app.name
             }
 
 

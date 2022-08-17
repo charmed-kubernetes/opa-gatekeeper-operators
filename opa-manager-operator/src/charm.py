@@ -77,7 +77,6 @@ class OPAManagerCharm(CharmBase):
 
     @property
     def pod_name(self):
-        # XXX: Temporary hack, we need to somehow get the pod's name
         return "-".join(self.unit.name.rsplit("/"))
 
     def _gatekeeper_layer(self):
