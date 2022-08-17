@@ -32,7 +32,7 @@ kubectl apply -f policy-spec-example.yaml
 ```
 
 After applying this policy all namespaces will need to have the label `gatekeeper`.
-Incoming namespaces are not affected by this.
+Existing namespaces are not affected by this.
 
 ### Getting policies
 To list all the policies that are currently applied run:
