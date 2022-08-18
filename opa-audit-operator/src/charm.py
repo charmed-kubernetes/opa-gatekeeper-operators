@@ -1,32 +1,28 @@
 #!/usr/bin/env python3
-
+import json
 import logging
-import yaml
-from pathlib import Path
+
+from charms.observability_libs.v1.kubernetes_service_patch import KubernetesServicePatch
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
+from lightkube import Client
+from lightkube.generic_resource import (
+    get_generic_resource,
+    load_in_cluster_generic_resources,
+)
+from lightkube.models.core_v1 import ServicePort
+from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
-from ops.framework import StoredState
-from ops.model import ActiveStatus, MaintenanceStatus
-from jinja2 import Template
-import os
-from oci_image import OCIImageResource, OCIImageResourceError
+from ops.manifests import Collector
+from ops.model import ActiveStatus, BlockedStatus, ModelError, WaitingStatus
+from ops.pebble import Error as PebbleError
+from ops.pebble import ServiceStatus
+
+from manifests import ControllerManagerManifests
 
 logger = logging.getLogger(__name__)
 
-
-class CustomResourceDefintion(object):
-    def __init__(self, name, spec):
-
-        self._name = name
-        self._spec = spec
-
-    @property
-    def spec(self):
-        return self._spec
-
-    @property
-    def name(self):
-        return self._name
+scrape_config = [{"static_configs": [{"targets": ["*:8888"]}]}]
 
 
 class OPAAuditCharm(CharmBase):
@@ -34,109 +30,255 @@ class OPAAuditCharm(CharmBase):
     A Juju Charm for OPA
     """
 
-    _stored = StoredState()
+    _GATEKEEPER_CONTAINER_NAME = "gatekeeper"
 
     def __init__(self, *args):
         super().__init__(*args)
+
+        self.metrics_endpoint = MetricsEndpointProvider(
+            self, "metrics-endpoint", jobs=scrape_config
+        )
+        metrics = ServicePort(8888, protocol="TCP", name="metrics")
+        self.service_patcher = KubernetesServicePatch(self, [metrics])
+
+        self.manifests = ControllerManagerManifests(self, self.config)
+        self.collector = Collector(self.manifests)
+
+        self.client = Client(field_manager=self.app.name, namespace=self.model.name)
+
+        self.framework.observe(self.on.install, self._install_or_upgrade)
+        self.framework.observe(self.on.upgrade_charm, self._install_or_upgrade)
+        self.framework.observe(
+            self.on.gatekeeper_pebble_ready, self._on_gatekeeper_pebble_ready
+        )
         self.framework.observe(self.on.config_changed, self._on_config_changed)
-        self.framework.observe(self.on.stop, self._on_stop)
-        self.framework.observe(self.on.install, self._on_install)
-        self._stored.set_default(things=[])
-        self.image = OCIImageResource(self, "gatekeeper-image")
+        self.framework.observe(self.on.update_status, self._on_update_status)
 
-    def _on_config_changed(self, _):
-        """
-        Set a new Juju pod specification
-        """
-        self._configure_pod()
+        # Template-related actions
+        self.framework.observe(self.on.list_constraints_action, self._list_constraints)
+        self.framework.observe(self.on.list_violations_action, self._list_violations)
+        self.framework.observe(self.on.get_violation_action, self._get_violation)
 
-    def _on_stop(self, _):
-        """
-        Mark unit is inactive
-        """
-        self.unit.status = MaintenanceStatus("Pod is terminating.")
-        logger.info("Pod is terminating.")
+        # Manifest-related actions
+        self.framework.observe(self.on.list_resources_action, self._list_resources)
+        self.framework.observe(self.on.list_versions_action, self._list_versions)
+        self.framework.observe(
+            self.on.reconcile_resources_action, self._reconcile_resources
+        )
 
-    def _on_install(self, event):
-        logger.info("Congratulations, the charm was properly installed!")
+        self.framework.observe(self.on.remove, self._cleanup)
 
-    def _build_pod_spec(self):
-        """
-        Construct a Juju pod specification for OPA
-        """
-        logger.debug("Building Pod Spec")
-        crds = []
+    @property
+    def is_running(self):
+        """Determine if a given service is running in a given container"""
         try:
-            crds = [
-                yaml.full_load(Path(f).read_text())
-                for f in [
-                    "files/configs.config.gatekeeper.sh.yaml",
-                    "files/constrainttemplates.templates.gatekeeper.sh.yaml",
-                    "files/constraintpodstatuses.status.gatekeeper.sh.yaml",
-                    "files/constrainttemplatepodstatuses.status.gatekeeper.sh.yaml",
-                ]
-            ]
-        except yaml.YAMLError as exc:
-            logger.error("Error in configuration file:", exc)
+            container = self.unit.get_container(self._GATEKEEPER_CONTAINER_NAME)
+            service = container.get_service(self._GATEKEEPER_CONTAINER_NAME)
+        except (ModelError, PebbleError):
+            return False
+        return service.current == ServiceStatus.ACTIVE
 
-        crd_objects = [
-            CustomResourceDefintion(crd["metadata"]["name"], crd["spec"])
-            for crd in crds
-        ]
+    @property
+    def pod_name(self):
+        return "-".join(self.unit.name.rsplit("/"))
 
-        config = self.model.config
-        spec_template = {}
-        with open("files/pod-spec.yaml.jinja2") as fh:
-            spec_template = Template(fh.read())
-
-        try:
-            image_details = self.image.fetch()
-        except OCIImageResourceError as e:
-            self.model.unit.status = e.status
-            return
-
-        template_args = {
-            "crds": crd_objects,
-            "image_details": image_details,
-            "imagePullPolicy": config["imagePullPolicy"],
-            "app_name": self.app.name,
-            "audit_cli_args": self._audit_cli_args(),
-            "namespace": os.environ["JUJU_MODEL_NAME"],
+    def _gatekeeper_layer(self):
+        return {
+            "summary": "Gatekeeper layer",
+            "description": "pebble config layer for Gatekeeper",
+            "services": {
+                self._GATEKEEPER_CONTAINER_NAME: {
+                    "override": "replace",
+                    "summary": "Gatekeeper",
+                    "command": "/manager "
+                    "--operation=audit "
+                    "--operation=status "
+                    "--operation=mutation-status "
+                    "--logtostderr "
+                    "--disable-opa-builtin={http.send} "
+                    "--disable-cert-rotation "
+                    f"--log-level {self.config['log-level']}",
+                    "startup": "enabled",
+                    "environment": {
+                        "POD_NAMESPACE": self.model.name,
+                        "POD_NAME": self.pod_name,
+                        "NAMESPACE": self.model.name,
+                        "CONTAINER_NAME": self._GATEKEEPER_CONTAINER_NAME,
+                    },
+                },
+            },
+            "checks": {
+                "up": {
+                    "override": "replace",
+                    "level": "alive",
+                    "http": {
+                        "url": "http://localhost:9090/healthz",
+                    },
+                },
+                "ready": {
+                    "override": "replace",
+                    "level": "ready",
+                    "http": {
+                        "url": "http://localhost:9090/readyz",
+                    },
+                },
+            },
         }
 
-        spec = yaml.full_load(spec_template.render(**template_args))
-
-        print(f"Pod spec: {spec}")
-        return spec
-
-    def _audit_cli_args(self):
-        """
-        Construct command line arguments for OPA Audit
-        """
-
-        args = [
-            "--operation=audit",
-            "--operation=status",
-            "--logtostderr",
-        ]
-
-        return args
-
-    def _configure_pod(self):
-        """
-        Setup a new opa pod specification
-        """
-        logger.debug("Configuring Pod")
-
+    def _install_or_upgrade(self, _event):
         if not self.unit.is_leader():
-            self.unit.status = ActiveStatus()
+            return
+        logger.info("Installing manifest resources ...")
+        self.manifests.apply_manifests()
+
+    def _on_gatekeeper_pebble_ready(self, event):
+        if self.is_running:
+            logger.info("Gatekeeper already started")
             return
 
-        self.unit.status = MaintenanceStatus("Setting pod spec.")
-        pod_spec = self._build_pod_spec()
+        container = event.workload
+        self._patch_statefulset()
+        layer = self._gatekeeper_layer()
+        container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
+        container.autostart()
+        self._on_update_status(event)
 
-        self.model.pod.set_spec(pod_spec)
-        self.unit.status = ActiveStatus()
+    def _on_config_changed(self, event):
+        if not self.is_running:
+            logger.info("Gatekeeper is not running")
+            return
+
+        container = self.unit.get_container(self._GATEKEEPER_CONTAINER_NAME)
+        layer = self._gatekeeper_layer()
+        container.add_layer(self._GATEKEEPER_CONTAINER_NAME, layer, combine=True)
+        container.restart(self._GATEKEEPER_CONTAINER_NAME)
+        self._on_update_status(event)
+
+    def _on_update_status(self, event):
+        """Update Juju status"""
+        logger.info("Update status")
+        if not self.is_running:
+            self.unit.status = WaitingStatus("Gatekeeper is not running")
+        elif self.manifests.resources != self.manifests.installed_resources():
+            self.unit.status = BlockedStatus(
+                "Missing resources, to reconcile run: "
+                "`juju run-action {unit_name} reconcile-resources`"
+            )
+        else:
+            self.unit.status = ActiveStatus()
+
+    def _cleanup(self, _event):
+        logger.info("Cleaning up manifest resources ...")
+        self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
+
+    def _list_resources(self, event):
+        return self.collector.list_resources(event, None, None)
+
+    def _list_versions(self, event):
+        self.collector.list_versions(event)
+
+    def _reconcile_resources(self, event):
+        event.log("Reconciling resources")
+        self.collector.apply_missing_resources(event, None, None)
+        event.log("Updating status")
+        self._on_update_status(event)
+
+    def _list_constraints(self, event):
+        event.log("Fetching templates")
+        load_in_cluster_generic_resources(self.client)
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        templates = self.client.list(ConstraintTemplate)
+        names = [t.spec["crd"]["spec"]["names"]["kind"] for t in templates]
+        constraint_resources = {
+            name: get_generic_resource("constraints.gatekeeper.sh/v1beta1", name)
+            for name in names
+        }
+
+        def get_resource_name(_resource):
+            return _resource.metadata.name
+
+        constraints = {
+            name.lower(): "\n".join(map(get_resource_name, self.client.list(resource)))
+            for name, resource in constraint_resources.items()
+        }
+        event.set_results(constraints)
+
+    def _list_violations(self, event):
+        event.log("Fetching templates")
+        load_in_cluster_generic_resources(self.client)
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        templates = self.client.list(ConstraintTemplate)
+        names = [t.spec["crd"]["spec"]["names"]["kind"] for t in templates]
+        constraint_resources = {
+            name: get_generic_resource("constraints.gatekeeper.sh/v1beta1", name)
+            for name in names
+        }
+
+        ret = []
+        for name, constraint_resource in constraint_resources.items():
+            for constraint in self.client.list(constraint_resource):
+                ret.append({
+                    "constraint_resource": name,
+                    "constraint": constraint.metadata.name,
+                    "total-violations": constraint.status["totalViolations"],
+                })
+        event.set_results({"constraint-violations": json.dumps(ret, indent=2)})
+
+    def _get_violation(self, event):
+        load_in_cluster_generic_resources(self.client)
+        constraint_template = event.params["constraint-template"]
+        constraint = event.params["constraint"]
+
+        ConstraintTemplate = get_generic_resource(
+            "constraints.gatekeeper.sh/v1beta1", constraint_template
+        )
+        if ConstraintTemplate is None:
+            event.log(f"Unknown constraint template: {constraint_template}")
+            raise ValueError(f"Unknown constraint template: {constraint_template}")
+        constraint = self.client.get(ConstraintTemplate, name=constraint)
+        event.set_results({"violations": json.dumps(constraint.status["violations"], indent=2)})
+
+    def _patch_statefulset(self):
+        """
+        Patch the statefulset to make it reflect the vanilla gatekeeper deployment spec
+        """
+        if not self.unit.is_leader():
+            return
+        logger.info("Patching the statefulset")
+
+        pod_spec_patch = {
+            "containers": [
+                {
+                    "name": "gatekeeper",
+                    "volumeMounts": [
+                        {
+                            "mountPath": "/certs",
+                            "name": "cert",
+                            "readOnly": True,
+                        },
+                    ],
+                },
+            ],
+            "priorityClassName": "system-cluster-critical",
+            "volumes": [
+                {
+                    "name": "cert",
+                    "secret": {
+                        "defaultMode": 420,
+                        "secretName": "gatekeeper-webhook-server-cert",
+                    },
+                },
+            ],
+        }
+
+        patch = {"spec": {"template": {"spec": pod_spec_patch}}}
+        self.client.patch(
+            StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
+        )
 
 
 if __name__ == "__main__":

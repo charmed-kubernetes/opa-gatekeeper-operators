@@ -1,62 +1,70 @@
-# Kubernetes Open Policy Agent Operator
-
-
+# Open Policy Agent Gatekeeper Audit Operator
 ## Description
 
-This repo contains the charm for the Manager agent operator
+This repo contains the charm for the OPA Gatekeeper audit operator.
+[OPA gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/)
+is an open source, general-purpose policy engine that enables unified,
+context-aware policy enforcement.
+
+The `opa-manager-audit` charm is used to apply policies to incomming
+kubernetes API requests.
 
 ## Usage
-
-### bootstrap (if new to juju)
-
-
-```
-$ sudo snap install juju --classic
-
-$ k8s_name=yournaminghere
-
-$ juju add-k8s ${k8s_name}-cloud
-
-$ juju bootstrap ${k8s_name}-cloud ${k8s_name}
-
+### Metrics
+Gatekeeper Controller Manager metrics can be integrated with a deployed
+[prometheus-k8s operator](https://charmhub.io/prometheus-k8s) using the following command:
+```commandline
+$ juju relate gatekeeper-controller-manager prometheus-k8s
 ```
 
-To deploy run:
-
-### Add Model
-
-```
-$ NAMESPACE=gatekeeper
-$ juju add-model ${NAMESPACE}
-
+If you would like to rely on the [grafana-agent-k8s operator](https://charmhub.io/grafana-agent-k8s) to push metrics,
+you can use the commands below:
+```commandline
+$ juju relate grafana-agent-k8s gatekeeper-controller-manager
+$ juju relate grafana-agent-k8s:send-remote-write prometheus-k8s:receive-remote-write
 ```
 
-
-###  Deploy
-
+### Applying policies
+There is an [example policy](docs) in this repo. To try it run:
+```commandline
+kubectl apply -f policy-example.yaml
+kubectl apply -f policy-spec-example.yaml
 ```
-$ juju deploy gatekeeper-audit --channel=beta
-$ juju deploy gatekeeper-manager --channel=beta
+After applying this policy all namespaces will be required to have the label `gatekeeper`.
 
+### Reading Audit Results
+As described on the official [docs](https://open-policy-agent.github.io/gatekeeper/website/docs/audit)
+there are multiple ways to get gather audit results. The opa-audit-operator provides actions
+to make seeing the audit results easier.
+Any namespaces violating a constraint can be listed using the `get-violation` action, e.g. for the constraint described above:
+```
+juju run-action gatekeeper-audit/0 get-violation constraint-template=K8sRequiredLabels constraint=ns-must-have-gk --wait
 ```
 
-### Post deployment steps
-
+To see how many resources violate each policy you need to run:
 ```
-$ NAMESPACE=your-namespace
-$ CA_CERT=$(kubectl get secrets -n gatekeeper gatekeeper-webhook-server-cert -o jsonpath="{.data.ca\.crt}")
-
-$ for i in {0..1}; do kubectl patch validatingWebhookConfigurations ${NAMESPACE}-gatekeeper-validating-webhook-configuration --type='json' -p='[{"op": "replace", "path": "/webhooks/'"$i"'/clientConfig/caBundle", "value":'"${CA_CERT}"'}]'; done
-
+juju run-action gatekeeper-audit/0 list-violations --wait
 ```
-## Development Environment Installation
 
-### Prerequisites
+### List policies
+To list all the policies that are currently applied run:
+```
+juju run-action {unit_name} list-constraints --wait
+```
 
-Note that the spark jobs typically set limits and need a CPU and a gig of ram. So we need to increase the default VM size.
+## Developing
+The easiest way to test gatekeeper locally is with [MicroK8s](https://microk8s.io/).
+Once you have installed microk8s and bootstrapped a Juju controller you are ready to
+build and deploy the charm:
 
-1. [Install `microk8s`](https://microk8s.io/)
-1. [Install `charmcraft`](https://github.com/canonical/charmcraft)
-1. Create a cluster: `microk8s install --cpu=4 --mem=8`
-1. Add the required addons: `microk8s enable storage dns`
-1. Export the current kubeconfig: `microk8s config > kube.conf; export KUBECONFIG=kube.conf`
+```commandline
+charmcraft build
+juju add-model gatekeeper
+juju deploy --trust charm --resource gatekeeper-image=openpolicyagent/gatekeeper:v3.9.0
+```
+
+## Testing
+
+```commandline
+$ tox
+```

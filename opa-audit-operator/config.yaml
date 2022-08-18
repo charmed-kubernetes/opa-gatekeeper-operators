@@ -1,9 +1,10 @@
 # Default values for opa-operator.
 options:
-
-  imagePullPolicy:
+  release:
+    default: v3.9.0
+    description: Version of OPA controller manager to deploy
     type: string
-    description: |
-      Image pull policy. Valid values are Always, Never, IfNotPresent
-    default: "Always"
-
+  log-level:
+    default: INFO
+    description: Set gatekeeper log level. For example, DEBUG, INFO, WARNING, ERROR.
+    type: string
