@@ -5,7 +5,6 @@ import ops.testing
 from lightkube.resources.apps_v1 import StatefulSet
 from ops.model import BlockedStatus
 
-
 ops.testing.SIMULATE_CAN_CONNECT = True
 
 

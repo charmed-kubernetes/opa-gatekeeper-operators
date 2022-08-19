@@ -1,26 +1,23 @@
 import asyncio
 import contextlib
-import logging
 import json
+import logging
 import time
 from pathlib import Path
 
 import pytest
 import yaml
 from lightkube import codecs
-from lightkube.core.exceptions import ApiError
 from lightkube.generic_resource import (
     get_generic_resource,
     load_in_cluster_generic_resources,
 )
-from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.apiextensions_v1 import CustomResourceDefinition
-from lightkube.resources.core_v1 import Namespace
 
 log = logging.getLogger(__name__)
 
 metadata = yaml.safe_load(Path("metadata.yaml").read_text())
-files = Path(__file__).parent / "files"
+files = Path(__file__).parent.parent.parent.parent / "docs"
 
 
 class ModelTimeout(Exception):
@@ -77,9 +74,7 @@ async def test_build_and_deploy(ops_test, charm):
 
     # We don't use wait for idle because we want to wait for the application to be
     # active and not the units
-    await wait_for_application(
-        model, "gatekeeper-audit", status="active", timeout=120
-    )
+    await wait_for_application(model, "gatekeeper-audit", status="active", timeout=120)
 
 
 @pytest.mark.abort_on_fail
@@ -118,7 +113,9 @@ async def test_apply_policy(client):
 
 def test_audit(client):
     # We test whether policy violations are being logged
-    K8sRequiredLabels = get_generic_resource("constraints.gatekeeper.sh/v1beta1", "K8sRequiredLabels")
+    K8sRequiredLabels = get_generic_resource(
+        "constraints.gatekeeper.sh/v1beta1", "K8sRequiredLabels"
+    )
     for _ in range(60):
         constraint = client.get(K8sRequiredLabels, name="ns-must-have-gk")
         if constraint.status and "violations" in constraint.status:
@@ -153,9 +150,9 @@ async def test_get_violations(ops_test):
         "enforcementAction": "deny",
         "group": "",
         "kind": "Namespace",
-        "message": "you must provide labels: {\"gatekeeper\"}",
+        "message": 'you must provide labels: {"gatekeeper"}',
         "name": ops_test.model_name,
-        "version": "v1"
+        "version": "v1",
     }
 
     unit = list(ops_test.model.units.values())[0]
@@ -181,9 +178,7 @@ async def test_reconciliation_required(ops_test, client):
     client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
 
     async with fast_forward(ops_test, interval="5s"):
-        await wait_for_workload_status(
-            model, "gatekeeper-audit", status="blocked"
-        )
+        await wait_for_workload_status(model, "gatekeeper-audit", status="blocked")
 
     apps = await model.get_status()
     app = apps.applications["gatekeeper-audit"]
