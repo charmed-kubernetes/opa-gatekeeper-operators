@@ -73,6 +73,9 @@ def test_gatekeeper_pebble_ready(harness, lk_client, mock_installed_resources):
                 "--logtostderr "
                 "--disable-opa-builtin={http.send} "
                 "--disable-cert-rotation "
+                "--constraint-violations-limit=20 "
+                "--audit-chunk-size=500 "
+                "--audit-interval=60 "
                 "--log-level INFO",
                 "environment": {
                     "CONTAINER_NAME": "gatekeeper",
@@ -134,6 +137,9 @@ def test_config_changed(harness, active_container, caplog):
                 "--logtostderr "
                 "--disable-opa-builtin={http.send} "
                 "--disable-cert-rotation "
+                "--constraint-violations-limit=20 "
+                "--audit-chunk-size=500 "
+                "--audit-interval=60 "
                 "--log-level DEBUG",
                 "environment": {
                     "CONTAINER_NAME": "gatekeeper",

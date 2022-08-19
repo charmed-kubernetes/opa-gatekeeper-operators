@@ -8,3 +8,20 @@ options:
     default: INFO
     description: Set gatekeeper log level. For example, DEBUG, INFO, WARNING, ERROR.
     type: string
+  constraint-violations-limit:
+    default: 20
+    description: |
+      The number of violations that will be reported, If the number of current violations
+      is greater than this cap, the excess violations will not be reported but they
+      will be included in the totalViolations count
+    type: int
+  audit-chunk-size:
+    default: 500
+    description: |
+      Lower chunk size can reduce memory consumption of the auditing Pod but
+      can increase the number requests to the Kubernetes API server.
+    type: int
+  audit-interval:
+    default: 60
+    description: Interval between the audits, to disable the interval set `audit-interval=0`
+    type: int

@@ -97,6 +97,9 @@ class OPAAuditCharm(CharmBase):
                     "--logtostderr "
                     "--disable-opa-builtin={http.send} "
                     "--disable-cert-rotation "
+                    f"--constraint-violations-limit={self.config['constraint-violations-limit']} "
+                    f"--audit-chunk-size={self.config['audit-chunk-size']} "
+                    f"--audit-interval={self.config['audit-interval']} "
                     f"--log-level {self.config['log-level']}",
                     "startup": "enabled",
                     "environment": {
