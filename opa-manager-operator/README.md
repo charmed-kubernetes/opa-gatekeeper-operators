@@ -1,7 +1,7 @@
 # Open Policy Agent Gatekeeper Webhook Operator
 ## Description
 
-This repo contains the charm for the OPA Gatekeeper webhook operator.
+This is the OPA Gatekeeper webhook operator charm.
 [OPA gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/)
 is an open source, general-purpose policy engine that enables unified,
 context-aware policy enforcement.

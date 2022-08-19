@@ -1,7 +1,7 @@
 # Open Policy Agent Gatekeeper Audit Operator
 ## Description
 
-This repo contains the charm for the OPA Gatekeeper audit operator.
+This is the OPA Gatekeeper audit operator charm.
 [OPA gatekeeper](https://open-policy-agent.github.io/gatekeeper/website/docs/)
 is an open source, general-purpose policy engine that enables unified,
 context-aware policy enforcement.
@@ -34,8 +34,8 @@ After applying this policy all namespaces will be required to have the label `ga
 
 ### Reading Audit Results
 As described on the official [docs](https://open-policy-agent.github.io/gatekeeper/website/docs/audit)
-there are multiple ways to get gather audit results. The opa-audit-operator provides actions
-to make seeing the audit results easier.
+there are multiple ways to gather the audit results. The opa-audit-operator provides actions
+to make it easier.
 Any namespaces violating a constraint can be listed using the `get-violation` action, e.g. for the constraint described above:
 ```
 juju run-action gatekeeper-audit/0 get-violation constraint-template=K8sRequiredLabels constraint=ns-must-have-gk --wait
