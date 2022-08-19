@@ -221,11 +221,13 @@ class OPAAuditCharm(CharmBase):
         ret = []
         for name, constraint_resource in constraint_resources.items():
             for constraint in self.client.list(constraint_resource):
-                ret.append({
-                    "constraint_resource": name,
-                    "constraint": constraint.metadata.name,
-                    "total-violations": constraint.status["totalViolations"],
-                })
+                ret.append(
+                    {
+                        "constraint_resource": name,
+                        "constraint": constraint.metadata.name,
+                        "total-violations": constraint.status["totalViolations"],
+                    }
+                )
         event.set_results({"constraint-violations": json.dumps(ret, indent=2)})
 
     def _get_violation(self, event):
@@ -240,7 +242,9 @@ class OPAAuditCharm(CharmBase):
             event.log(f"Unknown constraint template: {constraint_template}")
             raise ValueError(f"Unknown constraint template: {constraint_template}")
         constraint = self.client.get(ConstraintTemplate, name=constraint)
-        event.set_results({"violations": json.dumps(constraint.status["violations"], indent=2)})
+        event.set_results(
+            {"violations": json.dumps(constraint.status["violations"], indent=2)}
+        )
 
     def _patch_statefulset(self):
         """

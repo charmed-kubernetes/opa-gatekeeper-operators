@@ -25,7 +25,7 @@ $ juju relate grafana-agent-k8s:send-remote-write prometheus-k8s:receive-remote-
 ```
 
 ### Applying policies
-There is an [example policy](docs) in this repo. To try it run:
+There is an [example policy](../docs) in this repo. To try it run:
 ```commandline
 kubectl apply -f policy-example.yaml
 kubectl apply -f policy-spec-example.yaml

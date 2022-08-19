@@ -64,6 +64,7 @@ pod_disruption_budget = from_dict(
     )
 )
 
+
 class ModelNamespace(Patch):
     """Update the namespace of any namespaced resources to the model name."""
 
