@@ -110,6 +110,7 @@ async def test_apply_policy(client):
     # Verify that the constraint was created
     assert client.get(Constraint, constraint.metadata.name)
 
+
 async def test_audit(ops_test, client):
     # Set the audit interval to 0
     ops_test.juju(
@@ -117,7 +118,9 @@ async def test_audit(ops_test, client):
         "gatekeeper-audit",
         "audit-interval=1",
     )
-    await wait_for_application(ops_test.model, "gatekeeper-audit", status="active", timeout=120)
+    await wait_for_application(
+        ops_test.model, "gatekeeper-audit", status="active", timeout=120
+    )
     # We test whether policy violations are being logged
     K8sRequiredLabels = get_generic_resource(
         "constraints.gatekeeper.sh/v1beta1", "K8sRequiredLabels"
