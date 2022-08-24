@@ -17,7 +17,7 @@ def client():
 
 @pytest_asyncio.fixture(scope="module")
 async def charm(ops_test):
-    _charm = next(Path(".").glob("gatekeeper-controller-manager*.charm"), None)
+    _charm = next(Path(".").glob("gatekeeper-audit*.charm"), None)
     if not _charm:
         log.info("Building Charm...")
         _charm = await ops_test.build_charm(".")

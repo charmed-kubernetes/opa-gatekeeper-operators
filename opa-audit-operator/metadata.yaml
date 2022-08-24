@@ -7,7 +7,7 @@ containers:
   gatekeeper:
     resource: gatekeeper-image
     mounts:
-    - storage: tmp-volume
+    - storage: audit-volume
       location: /tmp/audit
 resources:
   gatekeeper-image:
@@ -18,5 +18,5 @@ provides:
   metrics-endpoint:
     interface: prometheus_scrape
 storage:
-  tmp-volume:
+  audit-volume:
     type: filesystem
