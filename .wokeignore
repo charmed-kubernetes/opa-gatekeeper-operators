@@ -1,1 +1,2 @@
+opa-audit-operator/lib/charms/observability_libs/v0/juju_topology.py
 opa-manager-operator/lib/charms/observability_libs/v0/juju_topology.py

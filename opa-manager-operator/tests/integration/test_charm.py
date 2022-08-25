@@ -20,6 +20,7 @@ from lightkube.resources.core_v1 import Namespace
 log = logging.getLogger(__name__)
 
 metadata = yaml.safe_load(Path("metadata.yaml").read_text())
+files = Path(__file__).parent.parent.parent.parent / "docs"
 
 
 class ModelTimeout(Exception):
@@ -86,7 +87,7 @@ async def test_apply_policy(client):
     # Create a template and a constraint
     load_in_cluster_generic_resources(client)
     policy = codecs.load_all_yaml(
-        Path("docs/policy-example.yaml").read_text(), create_resources_for_crds=True
+        (files / "policy-example.yaml").read_text(), create_resources_for_crds=True
     )[0]
     ConstraintTemplate = get_generic_resource(
         "templates.gatekeeper.sh/v1", "ConstraintTemplate"
@@ -102,7 +103,7 @@ async def test_apply_policy(client):
     assert client.get(ConstraintTemplate, policy.metadata.name)
 
     constraint = codecs.load_all_yaml(
-        Path("docs/policy-spec-example.yaml").read_text(),
+        (files / "policy-spec-example.yaml").read_text(),
         create_resources_for_crds=True,
     )[0]
     client.create(constraint)

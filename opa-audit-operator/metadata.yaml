@@ -3,9 +3,20 @@ description: |
   This charm deploys the Gatekeeper Audit.
 summary: |
   This charm deploys Gatekeeper Audit
-series: [kubernetes]
+containers:
+  gatekeeper:
+    resource: gatekeeper-image
+    mounts:
+    - storage: audit-volume
+      location: /tmp/audit
 resources:
   gatekeeper-image:
     type: oci-image
-    description: 'Gatekeeper image'
-    upstream-source: "openpolicyagent/gatekeeper:v3.2.3"
+    description: Gatekeeper image
+    upstream-source: openpolicyagent/gatekeeper:v3.9.0
+provides:
+  metrics-endpoint:
+    interface: prometheus_scrape
+storage:
+  audit-volume:
+    type: filesystem
