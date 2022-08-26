@@ -126,7 +126,7 @@ async def test_apply_policy(client):
 
 async def test_audit(ops_test, client):
     # Set the audit interval to 0
-    ops_test.juju(
+    await ops_test.juju(
         "config",
         "gatekeeper-audit",
         "audit-interval=1",
