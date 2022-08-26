@@ -110,6 +110,19 @@ async def test_apply_policy(client):
     # Verify that the constraint was created
     assert client.get(Constraint, constraint.metadata.name)
 
+    constraint = codecs.load_all_yaml(
+        (files / "policy-spec-null-example.yaml").read_text(),
+        create_resources_for_crds=True,
+    )[0]
+    client.create(constraint)
+
+    load_in_cluster_generic_resources(client)
+    Constraint = get_generic_resource(
+        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
+    )
+    # Verify that the constraint was created
+    assert client.get(Constraint, constraint.metadata.name)
+
 
 async def test_audit(ops_test, client):
     # Set the audit interval to 0
@@ -147,11 +160,21 @@ async def test_list_violations(ops_test):
         ops_test.model.info.name,
     )
     res = yaml.full_load(res[1])[unit.tag]
-    violations = json.loads(res["results"]["constraint-violations"])[0]
+    violations = json.loads(res["results"]["constraint-violations"])
     assert res["status"] == "completed"
-    assert violations["constraint"] == "ns-must-have-gk"
-    assert violations["constraint_resource"] == "K8sRequiredLabels"
-    assert violations["total-violations"] > 0
+    assert len(violations) == 2
+    assert any(
+        violation["constraint"] == "ns-must-have-gk"
+        and violation["constraint_resource"] == "K8sRequiredLabels"
+        and violation["total-violations"] > 0
+        for violation in violations
+    )
+    assert any(
+        violation["constraint"] == "ns-must-have-any"
+        and violation["constraint_resource"] == "K8sRequiredLabels"
+        and violation["total-violations"] is None
+        for violation in violations
+    )
 
 
 async def test_get_violations(ops_test):
