@@ -110,10 +110,58 @@ async def test_apply_policy(client):
     # Verify that the constraint was created
     assert client.get(Constraint, constraint.metadata.name)
 
+    constraint = codecs.load_all_yaml(
+        (files / "policy-spec-null-example.yaml").read_text(),
+        create_resources_for_crds=True,
+    )[0]
+    client.create(constraint)
+
+    load_in_cluster_generic_resources(client)
+    Constraint = get_generic_resource(
+        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
+    )
+    # Verify that the constraint was created
+    assert client.get(Constraint, constraint.metadata.name)
+
+
+async def test_list_no_violations(ops_test):
+    """This will run before the resources have been audited"""
+    unit = list(ops_test.model.units.values())[0]
+    unit_name = unit.name
+    res = await ops_test.juju(
+        "run-action",
+        unit_name,
+        "list-violations",
+        "--wait",
+        "-m",
+        ops_test.model.info.name,
+    )
+    res = yaml.full_load(res[1])[unit.tag]
+    violations = json.loads(res["results"]["constraint-violations"])
+    assert len(violations) == 2
+    assert any(
+        v
+        == {
+            "constraint_resource": "K8sRequiredLabels",
+            "constraint": "ns-must-have-any",
+            "total-violations": None,
+        }
+        for v in violations
+    )
+    assert any(
+        v
+        == {
+            "constraint_resource": "K8sRequiredLabels",
+            "constraint": "ns-must-have-gk",
+            "total-violations": None,
+        }
+        for v in violations
+    )
+
 
 async def test_audit(ops_test, client):
-    # Set the audit interval to 0
-    ops_test.juju(
+    # Set the audit interval to 1
+    await ops_test.juju(
         "config",
         "gatekeeper-audit",
         "audit-interval=1",
@@ -147,11 +195,21 @@ async def test_list_violations(ops_test):
         ops_test.model.info.name,
     )
     res = yaml.full_load(res[1])[unit.tag]
-    violations = json.loads(res["results"]["constraint-violations"])[0]
+    violations = json.loads(res["results"]["constraint-violations"])
     assert res["status"] == "completed"
-    assert violations["constraint"] == "ns-must-have-gk"
-    assert violations["constraint_resource"] == "K8sRequiredLabels"
-    assert violations["total-violations"] > 0
+    assert len(violations) == 2
+    assert any(
+        violation["constraint"] == "ns-must-have-gk"
+        and violation["constraint_resource"] == "K8sRequiredLabels"
+        and violation["total-violations"] > 0
+        for violation in violations
+    )
+    assert any(
+        violation["constraint"] == "ns-must-have-any"
+        and violation["constraint_resource"] == "K8sRequiredLabels"
+        and violation["total-violations"] == 0
+        for violation in violations
+    )
 
 
 async def test_get_violations(ops_test):

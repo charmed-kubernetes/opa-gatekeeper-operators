@@ -228,7 +228,7 @@ class OPAAuditCharm(CharmBase):
                     {
                         "constraint_resource": name,
                         "constraint": constraint.metadata.name,
-                        "total-violations": constraint.status["totalViolations"],
+                        "total-violations": constraint.status.get("totalViolations"),
                     }
                 )
         event.set_results({"constraint-violations": json.dumps(ret, indent=2)})
