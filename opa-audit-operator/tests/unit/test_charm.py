@@ -9,12 +9,20 @@ ops.testing.SIMULATE_CAN_CONNECT = True
 
 
 def test_on_install(harness, lk_client, monkeypatch):
+    excluded = [
+        "Deployment",
+        "Namespace",
+        "Service",
+        "ValidatingWebhookConfiguration",
+        "MutatingWebhookConfiguration",
+        "PodDisruptionBudget",
+    ]
     mock = MagicMock(side_effect=harness.charm.manifests.apply_manifests)
     monkeypatch.setattr("manifests.ControllerManagerManifests.apply_manifests", mock)
     assert harness.charm.on.install.emit() is None
     mock.assert_called_once()
     assert all(
-        i[0][0].kind not in ["Deployment", "Namespace"]
+        i[0][0].kind not in excluded
         for i in lk_client.apply.call_args_list
     )
 

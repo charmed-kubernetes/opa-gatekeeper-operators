@@ -36,7 +36,7 @@ service = from_dict(
     dict(
         apiVersion="v1",
         kind="Service",
-        metadata=dict(name="gatekeeper-webhook-service"),
+        metadata=dict(name="gatekeeper-webhook-service", namespace="gatekeeper-system"),
     )
 )
 
@@ -60,7 +60,7 @@ pod_disruption_budget = from_dict(
     dict(
         apiVersion="policy/v1beta1",
         kind="PodDisruptionBudget",
-        metadata=dict(name="gatekeeper-controller-manager"),
+        metadata=dict(name="gatekeeper-controller-manager", namespace="PodDisruptionBudget"),
     )
 )
 
