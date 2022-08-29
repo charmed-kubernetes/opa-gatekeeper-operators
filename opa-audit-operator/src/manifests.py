@@ -60,7 +60,9 @@ pod_disruption_budget = from_dict(
     dict(
         apiVersion="policy/v1beta1",
         kind="PodDisruptionBudget",
-        metadata=dict(name="gatekeeper-controller-manager", namespace="PodDisruptionBudget"),
+        metadata=dict(
+            name="gatekeeper-controller-manager", namespace="PodDisruptionBudget"
+        ),
     )
 )
 

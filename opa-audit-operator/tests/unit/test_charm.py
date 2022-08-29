@@ -21,10 +21,7 @@ def test_on_install(harness, lk_client, monkeypatch):
     monkeypatch.setattr("manifests.ControllerManagerManifests.apply_manifests", mock)
     assert harness.charm.on.install.emit() is None
     mock.assert_called_once()
-    assert all(
-        i[0][0].kind not in excluded
-        for i in lk_client.apply.call_args_list
-    )
+    assert all(i[0][0].kind not in excluded for i in lk_client.apply.call_args_list)
 
 
 def test_on_config_changed(harness, active_container):
