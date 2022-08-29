@@ -124,8 +124,43 @@ async def test_apply_policy(client):
     assert client.get(Constraint, constraint.metadata.name)
 
 
+async def test_list_no_violations(ops_test):
+    """This will run before the resources have been audited"""
+    unit = list(ops_test.model.units.values())[0]
+    unit_name = unit.name
+    res = await ops_test.juju(
+        "run-action",
+        unit_name,
+        "list-violations",
+        "--wait",
+        "-m",
+        ops_test.model.info.name,
+    )
+    res = yaml.full_load(res[1])[unit.tag]
+    violations = json.loads(res["results"]["constraint-violations"])
+    assert len(violations) == 2
+    assert any(
+        v
+        == {
+            "constraint_resource": "K8sRequiredLabels",
+            "constraint": "ns-must-have-any",
+            "total-violations": None,
+        }
+        for v in violations
+    )
+    assert any(
+        v
+        == {
+            "constraint_resource": "K8sRequiredLabels",
+            "constraint": "ns-must-have-gk",
+            "total-violations": None,
+        }
+        for v in violations
+    )
+
+
 async def test_audit(ops_test, client):
-    # Set the audit interval to 0
+    # Set the audit interval to 1
     await ops_test.juju(
         "config",
         "gatekeeper-audit",
@@ -172,7 +207,7 @@ async def test_list_violations(ops_test):
     assert any(
         violation["constraint"] == "ns-must-have-any"
         and violation["constraint_resource"] == "K8sRequiredLabels"
-        and violation["total-violations"] is None
+        and violation["total-violations"] == 0
         for violation in violations
     )
 
