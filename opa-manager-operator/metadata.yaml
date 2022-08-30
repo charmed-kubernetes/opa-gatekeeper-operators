@@ -3,6 +3,7 @@ description: |
   This charm deploys the Gatekeeper Controller Manager.
 summary: |
   This charm deploys the Gatekeeper manager for Kubernetes.
+docs: https://discourse.charmhub.io/t/opa-gatekeeper-manager-audit-docs-index/6961
 containers:
   gatekeeper:
     resource: gatekeeper-image
