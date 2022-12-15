@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import random
+import shlex
 import time
 from pathlib import Path
 
@@ -16,7 +17,6 @@ from lightkube.generic_resource import (
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.apiextensions_v1 import CustomResourceDefinition
 from lightkube.resources.core_v1 import Namespace
-import shlex
 
 log = logging.getLogger(__name__)
 

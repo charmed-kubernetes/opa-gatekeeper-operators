@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import shlex
 import time
 from pathlib import Path
 
@@ -13,7 +14,6 @@ from lightkube.generic_resource import (
     load_in_cluster_generic_resources,
 )
 from lightkube.resources.apiextensions_v1 import CustomResourceDefinition
-import shlex
 
 log = logging.getLogger(__name__)
 
