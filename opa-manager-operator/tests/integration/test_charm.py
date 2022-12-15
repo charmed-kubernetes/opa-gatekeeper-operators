@@ -16,6 +16,7 @@ from lightkube.generic_resource import (
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.apiextensions_v1 import CustomResourceDefinition
 from lightkube.resources.core_v1 import Namespace
+import shlex
 
 log = logging.getLogger(__name__)
 
@@ -66,11 +67,13 @@ async def test_build_and_deploy(ops_test, charm):
     model = ops_test.model
     image = metadata["resources"]["gatekeeper-image"]["upstream-source"]
 
-    await model.deploy(
-        entity_url=charm.resolve(),
-        trust=True,
-        resources={"gatekeeper-image": image},
+    cmd = (
+        f"juju deploy -m {ops_test.model_full_name} "
+        f"{charm.resolve()} "
+        f"--resource gatekeeper-image={image} "
+        "--trust"
     )
+    await ops_test.run(*shlex.split(cmd), check=True)
     await model.block_until(
         lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
     )
