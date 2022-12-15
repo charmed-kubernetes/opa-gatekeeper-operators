@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import random
+import shlex
 import time
 from pathlib import Path
 
@@ -66,11 +67,13 @@ async def test_build_and_deploy(ops_test, charm):
     model = ops_test.model
     image = metadata["resources"]["gatekeeper-image"]["upstream-source"]
 
-    await model.deploy(
-        entity_url=charm.resolve(),
-        trust=True,
-        resources={"gatekeeper-image": image},
+    cmd = (
+        f"juju deploy -m {ops_test.model_full_name} "
+        f"{charm.resolve()} "
+        f"--resource gatekeeper-image={image} "
+        "--trust"
     )
+    await ops_test.run(*shlex.split(cmd), check=True)
     await model.block_until(
         lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
     )

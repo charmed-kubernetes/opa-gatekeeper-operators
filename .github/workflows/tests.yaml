@@ -35,7 +35,7 @@ jobs:
       uses: charmed-kubernetes/actions-operator@main
       with:
           provider: microk8s
-          channel: 1.25
+          channel: 1.26/stable
     - name: Run test
       run: tox -e integration
     - name: Setup Debug Artifact Collection
