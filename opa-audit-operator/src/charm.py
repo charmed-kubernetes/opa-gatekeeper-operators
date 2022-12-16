@@ -13,7 +13,7 @@ from lightkube.models.core_v1 import ServicePort
 from lightkube.resources.apps_v1 import StatefulSet
 from ops.charm import CharmBase
 from ops.main import main
-from ops.manifests import Collector
+from ops.manifests import Collector, ManifestClientError
 from ops.model import ActiveStatus, BlockedStatus, ModelError, WaitingStatus
 from ops.pebble import Error as PebbleError
 from ops.pebble import ServiceStatus
@@ -128,11 +128,16 @@ class OPAAuditCharm(CharmBase):
             },
         }
 
-    def _install_or_upgrade(self, _event):
+    def _install_or_upgrade(self, event):
         if not self.unit.is_leader():
             return
         logger.info("Installing manifest resources ...")
-        self.manifests.apply_manifests()
+        try:
+            self.manifests.apply_manifests()
+        except ManifestClientError():
+            self.unit.status = WaitingStatus("Waiting kube-apiserver")
+            event.defer()
+            return
 
     def _on_gatekeeper_pebble_ready(self, event):
         if self.is_running:
@@ -170,9 +175,14 @@ class OPAAuditCharm(CharmBase):
         else:
             self.unit.status = ActiveStatus()
 
-    def _cleanup(self, _event):
+    def _cleanup(self, event):
         logger.info("Cleaning up manifest resources ...")
-        self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
+        try:
+            self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
+        except ManifestClientError:
+            self.unit.status = WaitingStatus("Waiting kube-apiserver")
+            event.defer()
+            return
 
     def _list_resources(self, event):
         return self.collector.list_resources(event, None, None)
@@ -181,10 +191,13 @@ class OPAAuditCharm(CharmBase):
         self.collector.list_versions(event)
 
     def _reconcile_resources(self, event):
-        event.log("Reconciling resources")
-        self.collector.apply_missing_resources(event, None, None)
-        event.log("Updating status")
-        self._on_update_status(event)
+        try:
+            event.log("Reconciling resources")
+            self.collector.apply_missing_resources(event, None, None)
+            event.log("Updating status")
+            self._on_update_status(event)
+        except ManifestClientError:
+            event.set_results({"result": "Failed to reconcile. API server unavailable."})
 
     def _list_constraints(self, event):
         event.log("Fetching templates")
