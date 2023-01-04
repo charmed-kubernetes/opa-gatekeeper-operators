@@ -178,7 +178,9 @@ class OPAAuditCharm(CharmBase):
     def _cleanup(self, event):
         logger.info("Cleaning up manifest resources ...")
         try:
-            self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
+            self.manifests.delete_manifests(
+                ignore_unauthorized=True, ignore_not_found=True
+            )
         except ManifestClientError:
             self.unit.status = WaitingStatus("Waiting kube-apiserver")
             event.defer()
@@ -197,7 +199,9 @@ class OPAAuditCharm(CharmBase):
             event.log("Updating status")
             self._on_update_status(event)
         except ManifestClientError:
-            event.set_results({"result": "Failed to reconcile. API server unavailable."})
+            event.set_results(
+                {"result": "Failed to reconcile. API server unavailable."}
+            )
 
     def _list_constraints(self, event):
         event.log("Fetching templates")

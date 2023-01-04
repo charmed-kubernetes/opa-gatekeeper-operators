@@ -168,7 +168,9 @@ class OPAManagerCharm(CharmBase):
     def _cleanup(self, event):
         logger.info("Cleaning up manifest resources ...")
         try:
-            self.manifests.delete_manifests(ignore_unauthorized=True, ignore_not_found=True)
+            self.manifests.delete_manifests(
+                ignore_unauthorized=True, ignore_not_found=True
+            )
         except ManifestClientError:
             self.unit.status = WaitingStatus("Waiting for kube-apiserver")
             event.defer()
