@@ -43,18 +43,9 @@ async def wait_for_application(model, app_name, status="active", timeout=60):
         if app.status.status == status:
             return
         await asyncio.sleep(2)
-        if int(time.time() - start) > timeout:
-            raise ModelTimeout
-
-
-async def wait_for_workload_status(model, app_name, status="active", timeout=60):
-    start = time.time()
-    while True:
-        apps = await model.get_status()
-        app = apps.applications[app_name]
-        if all(unit.workload_status.status == status for unit in app.units.values()):
-            return
-        await asyncio.sleep(2)
+        log.info(
+            f"Waiting for {app_name} to be {status}, currently={app.status.status}"
+        )
         if int(time.time() - start) > timeout:
             raise ModelTimeout
 
@@ -248,12 +239,9 @@ async def test_reconciliation_required(ops_test, client):
     client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
 
     async with fast_forward(ops_test, interval="5s"):
-        await wait_for_workload_status(model, "gatekeeper-audit", status="blocked")
-
-    apps = await model.get_status()
-    app = apps.applications["gatekeeper-audit"]
-    unit = list(app.units.values())[0]
-    assert unit.workload_status.status == "blocked"
+        await model.wait_for_idle(
+            apps=["gatekeeper-audit"], status="blocked", timeout=60
+        )
 
     unit = list(ops_test.model.units.values())[0]
     unit_name = unit.name
@@ -268,10 +256,7 @@ async def test_reconciliation_required(ops_test, client):
 
     res = yaml.full_load(res[1])[unit.tag]
     assert res["status"] == "completed"
-    apps = await model.get_status()
-    app = apps.applications["gatekeeper-audit"]
-    unit = list(app.units.values())[0]
-    assert unit.workload_status.status == "active"
+    await model.wait_for_idle(apps=["gatekeeper-audit"], status="active", timeout=60)
 
 
 async def test_upgrade(ops_test, charm):
@@ -289,4 +274,4 @@ async def test_upgrade(ops_test, charm):
     await model.block_until(
         lambda: "gatekeeper-audit" in model.applications, timeout=60
     )
-    await model.wait_for_idle(status="active")
+    await model.wait_for_idle(status="active", timeout=60)
