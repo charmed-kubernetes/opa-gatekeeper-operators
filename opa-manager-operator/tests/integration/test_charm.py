@@ -76,111 +76,120 @@ async def test_build_and_deploy(ops_test, charm):
     )
 
 
-@pytest.mark.abort_on_fail
-async def test_apply_policy(client):
-    # Create a template and a constraint
-    load_in_cluster_generic_resources(client)
-    policy = codecs.load_all_yaml(
-        (files / "policy-example.yaml").read_text(), create_resources_for_crds=True
-    )[0]
-    ConstraintTemplate = get_generic_resource(
-        "templates.gatekeeper.sh/v1", "ConstraintTemplate"
-    )
-    client.apply(policy)
-    # Wait for the template crd to be created from gatekeeper
-    client.wait(
-        CustomResourceDefinition,
-        "k8srequiredlabels.constraints.gatekeeper.sh",
-        for_conditions=("Established",),
-    )
-    load_in_cluster_generic_resources(client)
-    assert client.get(ConstraintTemplate, policy.metadata.name)
+@pytest.fixture(scope="class")
+def policies(client):
+    applied = []
+    try:
+        # Create a template and a constraint
+        load_in_cluster_generic_resources(client)
+        policy = codecs.load_all_yaml(
+            (files / "policy-example.yaml").read_text(), create_resources_for_crds=True
+        )[0]
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        client.apply(policy)
+        applied.append(policy)
+        # Wait for the template crd to be created from gatekeeper
+        client.wait(
+            CustomResourceDefinition,
+            "k8srequiredlabels.constraints.gatekeeper.sh",
+            for_conditions=("Established",),
+        )
+        load_in_cluster_generic_resources(client)
+        assert client.get(ConstraintTemplate, policy.metadata.name)
 
-    constraint = codecs.load_all_yaml(
-        (files / "policy-spec-example.yaml").read_text(),
-        create_resources_for_crds=True,
-    )[0]
-    client.apply(constraint)
-
-    load_in_cluster_generic_resources(client)
-    Constraint = get_generic_resource(
-        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
-    )
-    # Verify that the constraint was created
-    assert client.get(Constraint, constraint.metadata.name)
-
-
-async def test_list_constraints(ops_test):
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "list-constraints",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-    res = yaml.full_load(res[1])[unit.tag]
-    assert res["status"] == "completed"
-    assert res["results"] == {"k8srequiredlabels": "ns-must-have-gk"}
+        constraint = codecs.load_all_yaml(
+            (files / "policy-spec-example.yaml").read_text(),
+            create_resources_for_crds=True,
+        )[0]
+        client.apply(constraint)
+        applied.append(constraint)
+        load_in_cluster_generic_resources(client)
+        Constraint = get_generic_resource(
+            "constraints.gatekeeper.sh/v1beta1",
+            policy.spec["crd"]["spec"]["names"]["kind"],
+        )
+        # Verify that the constraint was created
+        assert client.get(Constraint, constraint.metadata.name)
+        yield applied
+    finally:
+        for resource in reversed(applied):
+            log.info(f"Removing {type(resource)} {resource.metadata.name}")
+            client.delete(type(resource), resource.metadata.name)
 
 
-def test_policy_is_enforced(client):
-    # We test whether the policy is being enforced after we test the list
-    # action, in order to give gatekeeper enough time to register the constraint
-    ns_name = f"test-ns-{random.randint(1, 99999)}"
-    # Verify that the policy is enforced
-    with pytest.raises(ApiError) as e:
-        client.apply(Namespace(metadata=ObjectMeta(name=ns_name)))
-        log.info("Namespace was created, the policy was not enforced")
-        # The policy was not enforce, clean the workspace
-        client.delete(Namespace, ns_name)
+@pytest.mark.usefixtures("policies")
+class TestPolicies:
+    async def test_list_constraints(self, ops_test):
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "list-constraints",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
+        )
+        res = yaml.full_load(res[1])[unit.tag]
+        assert res["status"] == "completed"
+        assert res["results"] == {"k8srequiredlabels": "ns-must-have-gk"}
 
-    err_msg = e.value.response.json()["message"]
-    assert e.value.response.status_code == 403
-    assert err_msg.startswith(
-        'admission webhook "validation.gatekeeper.sh" denied the request:'
-    )
+    def test_policy_is_enforced(self, client):
+        # We test whether the policy is being enforced after we test the list
+        # action, in order to give gatekeeper enough time to register the constraint
+        ns_name = f"test-ns-{random.randint(1, 99999)}"
+        # Verify that the policy is enforced
+        with pytest.raises(ApiError) as e:
+            client.apply(Namespace(metadata=ObjectMeta(name=ns_name)))
+            log.info("Namespace was created, the policy was not enforced")
+            # The policy was not enforce, clean the workspace
+            client.delete(Namespace, ns_name)
 
-    # Test that the namespace with the appropriate label is created
-    client.apply(
-        Namespace(
-            metadata=ObjectMeta(
-                name=ns_name,
-                labels=dict(gatekeeper="True"),
+        err_msg = e.value.response.json()["message"]
+        assert e.value.response.status_code == 403
+        assert err_msg.startswith(
+            'admission webhook "validation.gatekeeper.sh" denied the request:'
+        )
+
+        # Test that the namespace with the appropriate label is created
+        client.apply(
+            Namespace(
+                metadata=ObjectMeta(
+                    name=ns_name,
+                    labels=dict(gatekeeper="True"),
+                )
             )
         )
-    )
-    # Clean the workspace
-    client.delete(Namespace, ns_name)
+        # Clean the workspace
+        client.delete(Namespace, ns_name)
 
+    async def test_reconciliation_required(self, ops_test, client):
+        model = ops_test.model
+        client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
 
-async def test_reconciliation_required(ops_test, client):
-    model = ops_test.model
-    client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
+        async with fast_forward(ops_test, interval="5s"):
+            await model.wait_for_idle(
+                apps=["gatekeeper-controller-manager"], status="blocked", timeout=60
+            )
 
-    async with fast_forward(ops_test, interval="5s"):
-        await model.wait_for_idle(
-            apps=["gatekeeper-controller-manager"], status="blocked", timeout=60
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "reconcile-resources",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
         )
 
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "reconcile-resources",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-
-    res = yaml.full_load(res[1])[unit.tag]
-    assert res["status"] == "completed"
-    await model.wait_for_idle(
-        apps=["gatekeeper-controller-manager"], status="active", timeout=60
-    )
+        res = yaml.full_load(res[1])[unit.tag]
+        assert res["status"] == "completed"
+        await model.wait_for_idle(
+            apps=["gatekeeper-controller-manager"], status="active", timeout=60
+        )
 
 
 async def test_upgrade(ops_test, charm):
