@@ -81,7 +81,7 @@ async def test_apply_policy(client):
     ConstraintTemplate = get_generic_resource(
         "templates.gatekeeper.sh/v1", "ConstraintTemplate"
     )
-    client.create(policy)
+    client.apply(policy)
     # Wait for the template crd to be created from gatekeeper
     client.wait(
         CustomResourceDefinition,
@@ -95,7 +95,7 @@ async def test_apply_policy(client):
         (files / "policy-spec-example.yaml").read_text(),
         create_resources_for_crds=True,
     )[0]
-    client.create(constraint)
+    client.apply(constraint)
 
     load_in_cluster_generic_resources(client)
     Constraint = get_generic_resource(
@@ -108,7 +108,7 @@ async def test_apply_policy(client):
         (files / "policy-spec-null-example.yaml").read_text(),
         create_resources_for_crds=True,
     )[0]
-    client.create(constraint)
+    client.apply(constraint)
 
     load_in_cluster_generic_resources(client)
     Constraint = get_generic_resource(

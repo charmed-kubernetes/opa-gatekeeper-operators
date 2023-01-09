@@ -86,7 +86,7 @@ async def test_apply_policy(client):
     ConstraintTemplate = get_generic_resource(
         "templates.gatekeeper.sh/v1", "ConstraintTemplate"
     )
-    client.create(policy)
+    client.apply(policy)
     # Wait for the template crd to be created from gatekeeper
     client.wait(
         CustomResourceDefinition,
@@ -100,7 +100,7 @@ async def test_apply_policy(client):
         (files / "policy-spec-example.yaml").read_text(),
         create_resources_for_crds=True,
     )[0]
-    client.create(constraint)
+    client.apply(constraint)
 
     load_in_cluster_generic_resources(client)
     Constraint = get_generic_resource(
@@ -132,7 +132,7 @@ def test_policy_is_enforced(client):
     ns_name = f"test-ns-{random.randint(1, 99999)}"
     # Verify that the policy is enforced
     with pytest.raises(ApiError) as e:
-        client.create(Namespace(metadata=ObjectMeta(name=ns_name)))
+        client.apply(Namespace(metadata=ObjectMeta(name=ns_name)))
         log.info("Namespace was created, the policy was not enforced")
         # The policy was not enforce, clean the workspace
         client.delete(Namespace, ns_name)
@@ -144,7 +144,7 @@ def test_policy_is_enforced(client):
     )
 
     # Test that the namespace with the appropriate label is created
-    client.create(
+    client.apply(
         Namespace(
             metadata=ObjectMeta(
                 name=ns_name,
