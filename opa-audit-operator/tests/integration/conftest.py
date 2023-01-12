@@ -12,7 +12,7 @@ KUBECONFIG = os.environ.get("TESTING_KUBECONFIG", "~/.kube/config")
 
 @pytest.fixture(scope="module")
 def client():
-    return Client(config=KubeConfig.from_file(KUBECONFIG))
+    return Client(config=KubeConfig.from_file(KUBECONFIG), field_manager="integration")
 
 
 @pytest_asyncio.fixture(scope="module")

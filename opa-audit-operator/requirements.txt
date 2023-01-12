@@ -1,4 +1,4 @@
 ops
 lightkube
 lightkube-models
-git+https://github.com/canonical/ops-lib-manifest.git@main
+git+https://github.com/canonical/ops-lib-manifest.git@d8011cbd96c63257fffe76e979ac4b06da9b4fda
