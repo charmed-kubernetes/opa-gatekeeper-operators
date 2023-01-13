@@ -56,17 +56,6 @@ mutating_webhook = from_dict(
     )
 )
 
-pod_disruption_budget_beta = from_dict(
-    dict(
-        apiVersion="policy/v1beta1",
-        kind="PodDisruptionBudget",
-        metadata=dict(
-            name="gatekeeper-controller-manager", namespace="PodDisruptionBudget"
-        ),
-    )
-)
-
-
 pod_disruption_budget = from_dict(
     dict(
         apiVersion="policy/v1",
@@ -112,7 +101,6 @@ class ControllerManagerManifests(Manifests):
             SubtractEq(self, validating_webhook),
             SubtractEq(self, mutating_webhook),
             SubtractEq(self, pod_disruption_budget),
-            SubtractEq(self, pod_disruption_budget_beta),
             ManifestLabel(self),
             ModelNamespace(self),
             RoleBinding(self),

@@ -43,18 +43,9 @@ async def wait_for_application(model, app_name, status="active", timeout=60):
         if app.status.status == status:
             return
         await asyncio.sleep(2)
-        if int(time.time() - start) > timeout:
-            raise ModelTimeout
-
-
-async def wait_for_workload_status(model, app_name, status="active", timeout=60):
-    start = time.time()
-    while True:
-        apps = await model.get_status()
-        app = apps.applications[app_name]
-        if all(unit.workload_status.status == status for unit in app.units.values()):
-            return
-        await asyncio.sleep(2)
+        log.info(
+            f"Waiting for {app_name} to be {status}, currently={app.status.status}"
+        )
         if int(time.time() - start) > timeout:
             raise ModelTimeout
 
@@ -80,198 +71,204 @@ async def test_build_and_deploy(ops_test, charm):
     await wait_for_application(model, "gatekeeper-audit", status="active", timeout=120)
 
 
-@pytest.mark.abort_on_fail
-async def test_apply_policy(client):
-    # Create a template and a constraint
-    load_in_cluster_generic_resources(client)
-    policy = codecs.load_all_yaml(
-        (files / "policy-example.yaml").read_text(), create_resources_for_crds=True
-    )[0]
-    ConstraintTemplate = get_generic_resource(
-        "templates.gatekeeper.sh/v1", "ConstraintTemplate"
-    )
-    client.create(policy)
-    # Wait for the template crd to be created from gatekeeper
-    client.wait(
-        CustomResourceDefinition,
-        "k8srequiredlabels.constraints.gatekeeper.sh",
-        for_conditions=("Established",),
-    )
-    load_in_cluster_generic_resources(client)
-    assert client.get(ConstraintTemplate, policy.metadata.name)
+@pytest.fixture(scope="class")
+def policies(client):
+    applied = []
+    try:
+        # Create a template and a constraint
+        load_in_cluster_generic_resources(client)
+        policy = codecs.load_all_yaml(
+            (files / "policy-example.yaml").read_text(), create_resources_for_crds=True
+        )[0]
+        ConstraintTemplate = get_generic_resource(
+            "templates.gatekeeper.sh/v1", "ConstraintTemplate"
+        )
+        client.apply(policy)
+        applied.append(policy)
+        # Wait for the template crd to be created from gatekeeper
+        client.wait(
+            CustomResourceDefinition,
+            "k8srequiredlabels.constraints.gatekeeper.sh",
+            for_conditions=("Established",),
+        )
+        # Confirm ConstraintTemplate
+        load_in_cluster_generic_resources(client)
+        assert client.get(ConstraintTemplate, policy.metadata.name)
 
-    constraint = codecs.load_all_yaml(
-        (files / "policy-spec-example.yaml").read_text(),
-        create_resources_for_crds=True,
-    )[0]
-    client.create(constraint)
+        constraint = codecs.load_all_yaml(
+            (files / "policy-spec-example.yaml").read_text(),
+            create_resources_for_crds=True,
+        )[0]
+        client.apply(constraint)
+        applied.append(constraint)
 
-    load_in_cluster_generic_resources(client)
-    Constraint = get_generic_resource(
-        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
-    )
-    # Verify that the constraint was created
-    assert client.get(Constraint, constraint.metadata.name)
+        load_in_cluster_generic_resources(client)
+        Constraint = get_generic_resource(
+            "constraints.gatekeeper.sh/v1beta1",
+            policy.spec["crd"]["spec"]["names"]["kind"],
+        )
+        # Verify that the constraint was created
+        assert client.get(Constraint, constraint.metadata.name)
+        constraint = codecs.load_all_yaml(
+            (files / "policy-spec-null-example.yaml").read_text(),
+            create_resources_for_crds=True,
+        )[0]
+        client.apply(constraint)
+        applied.append(constraint)
+        load_in_cluster_generic_resources(client)
+        Constraint = get_generic_resource(
+            "constraints.gatekeeper.sh/v1beta1",
+            policy.spec["crd"]["spec"]["names"]["kind"],
+        )
+        # Verify that the constraint was created
+        assert client.get(Constraint, constraint.metadata.name)
 
-    constraint = codecs.load_all_yaml(
-        (files / "policy-spec-null-example.yaml").read_text(),
-        create_resources_for_crds=True,
-    )[0]
-    client.create(constraint)
-
-    load_in_cluster_generic_resources(client)
-    Constraint = get_generic_resource(
-        "constraints.gatekeeper.sh/v1beta1", policy.spec["crd"]["spec"]["names"]["kind"]
-    )
-    # Verify that the constraint was created
-    assert client.get(Constraint, constraint.metadata.name)
+        yield applied
+    finally:
+        for resource in reversed(applied):
+            log.info(f"Removing {type(resource)} {resource.metadata.name}")
+            client.delete(type(resource), resource.metadata.name)
 
 
-async def test_list_no_violations(ops_test):
-    """This will run before the resources have been audited"""
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "list-violations",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-    res = yaml.full_load(res[1])[unit.tag]
-    violations = json.loads(res["results"]["constraint-violations"])
-    assert len(violations) == 2
-    assert any(
-        v
-        == {
-            "constraint_resource": "K8sRequiredLabels",
-            "constraint": "ns-must-have-any",
-            "total-violations": None,
+@pytest.mark.usefixtures("policies")
+class TestPolicies:
+    async def test_list_no_violations(self, ops_test):
+        """This will run before the resources have been audited"""
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "list-violations",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
+        )
+        res = yaml.full_load(res[1])[unit.tag]
+        violations = json.loads(res["results"]["constraint-violations"])
+        assert len(violations) == 2
+        assert any(
+            v
+            == {
+                "constraint_resource": "K8sRequiredLabels",
+                "constraint": "ns-must-have-any",
+                "total-violations": None,
+            }
+            for v in violations
+        )
+        assert any(
+            v
+            == {
+                "constraint_resource": "K8sRequiredLabels",
+                "constraint": "ns-must-have-gk",
+                "total-violations": None,
+            }
+            for v in violations
+        )
+
+    async def test_audit(self, ops_test, client):
+        # Set the audit interval to 1
+        await ops_test.juju(
+            "config",
+            "gatekeeper-audit",
+            "audit-interval=1",
+        )
+        await wait_for_application(
+            ops_test.model, "gatekeeper-audit", status="active", timeout=120
+        )
+        # We test whether policy violations are being logged
+        K8sRequiredLabels = get_generic_resource(
+            "constraints.gatekeeper.sh/v1beta1", "K8sRequiredLabels"
+        )
+        for _ in range(30):
+            constraint = client.get(K8sRequiredLabels, name="ns-must-have-gk")
+            if constraint.status and "violations" in constraint.status:
+                break
+            time.sleep(1)
+
+        assert constraint.status is not None
+        assert "violations" in constraint.status
+
+    async def test_list_violations(self, ops_test):
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "list-violations",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
+        )
+        res = yaml.full_load(res[1])[unit.tag]
+        violations = json.loads(res["results"]["constraint-violations"])
+        assert res["status"] == "completed"
+        assert len(violations) == 2
+        assert any(
+            violation["constraint"] == "ns-must-have-gk"
+            and violation["constraint_resource"] == "K8sRequiredLabels"
+            and violation["total-violations"] > 0
+            for violation in violations
+        )
+        assert any(
+            violation["constraint"] == "ns-must-have-any"
+            and violation["constraint_resource"] == "K8sRequiredLabels"
+            and violation["total-violations"] == 0
+            for violation in violations
+        )
+
+    async def test_get_violations(self, ops_test):
+        expected_model_violation = {
+            "enforcementAction": "deny",
+            "group": "",
+            "kind": "Namespace",
+            "message": 'you must provide labels: {"gatekeeper"}',
+            "name": ops_test.model_name,
+            "version": "v1",
         }
-        for v in violations
-    )
-    assert any(
-        v
-        == {
-            "constraint_resource": "K8sRequiredLabels",
-            "constraint": "ns-must-have-gk",
-            "total-violations": None,
-        }
-        for v in violations
-    )
 
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "get-violation",
+            "constraint-template=K8sRequiredLabels",
+            "constraint=ns-must-have-gk",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
+        )
+        res = yaml.full_load(res[1])[unit.tag]
+        violations = json.loads(res["results"]["violations"])
+        assert res["status"] == "completed"
+        assert any(v == expected_model_violation for v in violations)
 
-async def test_audit(ops_test, client):
-    # Set the audit interval to 1
-    await ops_test.juju(
-        "config",
-        "gatekeeper-audit",
-        "audit-interval=1",
-    )
-    await wait_for_application(
-        ops_test.model, "gatekeeper-audit", status="active", timeout=120
-    )
-    # We test whether policy violations are being logged
-    K8sRequiredLabels = get_generic_resource(
-        "constraints.gatekeeper.sh/v1beta1", "K8sRequiredLabels"
-    )
-    for _ in range(30):
-        constraint = client.get(K8sRequiredLabels, name="ns-must-have-gk")
-        if constraint.status and "violations" in constraint.status:
-            break
-        time.sleep(1)
+    async def test_reconciliation_required(self, ops_test, client):
+        model = ops_test.model
+        client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
 
-    assert constraint.status is not None
-    assert "violations" in constraint.status
+        async with fast_forward(ops_test, interval="5s"):
+            await model.wait_for_idle(
+                apps=["gatekeeper-audit"], status="blocked", timeout=60
+            )
 
+        unit = list(ops_test.model.units.values())[0]
+        unit_name = unit.name
+        res = await ops_test.juju(
+            "run-action",
+            unit_name,
+            "reconcile-resources",
+            "--wait",
+            "-m",
+            ops_test.model.info.name,
+        )
 
-async def test_list_violations(ops_test):
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "list-violations",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-    res = yaml.full_load(res[1])[unit.tag]
-    violations = json.loads(res["results"]["constraint-violations"])
-    assert res["status"] == "completed"
-    assert len(violations) == 2
-    assert any(
-        violation["constraint"] == "ns-must-have-gk"
-        and violation["constraint_resource"] == "K8sRequiredLabels"
-        and violation["total-violations"] > 0
-        for violation in violations
-    )
-    assert any(
-        violation["constraint"] == "ns-must-have-any"
-        and violation["constraint_resource"] == "K8sRequiredLabels"
-        and violation["total-violations"] == 0
-        for violation in violations
-    )
-
-
-async def test_get_violations(ops_test):
-    expected_model_violation = {
-        "enforcementAction": "deny",
-        "group": "",
-        "kind": "Namespace",
-        "message": 'you must provide labels: {"gatekeeper"}',
-        "name": ops_test.model_name,
-        "version": "v1",
-    }
-
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "get-violation",
-        "constraint-template=K8sRequiredLabels",
-        "constraint=ns-must-have-gk",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-    res = yaml.full_load(res[1])[unit.tag]
-    violations = json.loads(res["results"]["violations"])
-    assert res["status"] == "completed"
-    assert any(v == expected_model_violation for v in violations)
-
-
-async def test_reconciliation_required(ops_test, client):
-    model = ops_test.model
-    client.delete(CustomResourceDefinition, "assign.mutations.gatekeeper.sh")
-
-    async with fast_forward(ops_test, interval="5s"):
-        await wait_for_workload_status(model, "gatekeeper-audit", status="blocked")
-
-    apps = await model.get_status()
-    app = apps.applications["gatekeeper-audit"]
-    unit = list(app.units.values())[0]
-    assert unit.workload_status.status == "blocked"
-
-    unit = list(ops_test.model.units.values())[0]
-    unit_name = unit.name
-    res = await ops_test.juju(
-        "run-action",
-        unit_name,
-        "reconcile-resources",
-        "--wait",
-        "-m",
-        ops_test.model.info.name,
-    )
-
-    res = yaml.full_load(res[1])[unit.tag]
-    assert res["status"] == "completed"
-    apps = await model.get_status()
-    app = apps.applications["gatekeeper-audit"]
-    unit = list(app.units.values())[0]
-    assert unit.workload_status.status == "active"
+        res = yaml.full_load(res[1])[unit.tag]
+        assert res["status"] == "completed"
+        await model.wait_for_idle(
+            apps=["gatekeeper-audit"], status="active", timeout=60
+        )
 
 
 async def test_upgrade(ops_test, charm):
