@@ -146,7 +146,7 @@ class TestPolicies:
         )
         res = yaml.full_load(res[1])[unit.tag]
         violations = json.loads(res["results"]["constraint-violations"])
-        assert len(violations) == 2
+        assert len(violations) == 2, json.dumps(violations, indent=2)
         assert any(
             v
             == {
