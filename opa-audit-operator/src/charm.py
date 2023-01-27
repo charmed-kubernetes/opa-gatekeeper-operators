@@ -170,8 +170,11 @@ class OPAAuditCharm(CharmBase):
         elif self.manifests.resources != self.manifests.installed_resources():
             self.unit.status = BlockedStatus(
                 "Missing resources, to reconcile run: "
-                "`juju run-action {unit_name} reconcile-resources`"
+                f"`juju run-action {self.unit.name} reconcile-resources`"
             )
+        elif unready := self.collector.unready:
+            # Wait for all installed resource to be ready
+            self.unit.status = WaitingStatus(", ".join(unready))
         else:
             self.unit.status = ActiveStatus()
 

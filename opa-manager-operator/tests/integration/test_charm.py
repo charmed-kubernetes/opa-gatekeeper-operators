@@ -60,7 +60,7 @@ async def test_build_and_deploy(ops_test, charm):
 
     cmd = (
         f"juju deploy -m {ops_test.model_full_name} "
-        f"{charm.resolve()} "
+        f"{charm.resolve()} -n 2"
         f"--resource gatekeeper-image={image} "
         "--trust"
     )
