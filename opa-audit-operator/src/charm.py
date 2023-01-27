@@ -244,16 +244,13 @@ class OPAAuditCharm(CharmBase):
         ret = []
         for name, constraint_resource in constraint_resources.items():
             for constraint in self.client.list(constraint_resource):
-                if constraint.status is None:
-                    logger.info(
-                        f"Skipping constraint lacking status {name}/{constraint.metadata.name}"
-                    )
-                    continue
+                if (violations := constraint.status) is not None:
+                    violations = violations.get("totalViolations")
                 ret.append(
                     {
                         "constraint_resource": name,
                         "constraint": constraint.metadata.name,
-                        "total-violations": constraint.status.get("totalViolations"),
+                        "total-violations": violations,
                     }
                 )
         event.set_results({"constraint-violations": json.dumps(ret, indent=2)})
