@@ -170,8 +170,11 @@ class OPAAuditCharm(CharmBase):
         elif self.manifests.resources != self.manifests.installed_resources():
             self.unit.status = BlockedStatus(
                 "Missing resources, to reconcile run: "
-                "`juju run-action {unit_name} reconcile-resources`"
+                f"`juju run-action {self.unit.name} reconcile-resources`"
             )
+        elif unready := self.collector.unready:
+            # Wait for all installed resource to be ready
+            self.unit.status = WaitingStatus(", ".join(unready))
         else:
             self.unit.status = ActiveStatus()
 
@@ -241,11 +244,13 @@ class OPAAuditCharm(CharmBase):
         ret = []
         for name, constraint_resource in constraint_resources.items():
             for constraint in self.client.list(constraint_resource):
+                if (violations := constraint.status) is not None:
+                    violations = violations.get("totalViolations")
                 ret.append(
                     {
                         "constraint_resource": name,
                         "constraint": constraint.metadata.name,
-                        "total-violations": constraint.status.get("totalViolations"),
+                        "total-violations": violations,
                     }
                 )
         event.set_results({"constraint-violations": json.dumps(ret, indent=2)})

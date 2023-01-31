@@ -60,7 +60,7 @@ async def test_build_and_deploy(ops_test, charm):
 
     cmd = (
         f"juju deploy -m {ops_test.model_full_name} "
-        f"{charm.resolve()} "
+        f"{charm.resolve()} -n 2 "
         f"--resource gatekeeper-image={image} "
         "--trust"
     )
@@ -71,9 +71,10 @@ async def test_build_and_deploy(ops_test, charm):
 
     # We don't use wait for idle because we want to wait for the application to be
     # active and not the units
-    await wait_for_application(
-        model, "gatekeeper-controller-manager", status="active", timeout=120
-    )
+    async with fast_forward(ops_test, interval="10s"):
+        await wait_for_application(
+            model, "gatekeeper-controller-manager", status="active", timeout=60 * 10
+        )
 
 
 @pytest.fixture(scope="class")
@@ -187,9 +188,10 @@ class TestPolicies:
 
         res = yaml.full_load(res[1])[unit.tag]
         assert res["status"] == "completed"
-        await model.wait_for_idle(
-            apps=["gatekeeper-controller-manager"], status="active", timeout=60
-        )
+        async with fast_forward(ops_test, interval="5s"):
+            await model.wait_for_idle(
+                apps=["gatekeeper-controller-manager"], status="active", timeout=60
+            )
 
 
 async def test_upgrade(ops_test, charm):
@@ -207,4 +209,5 @@ async def test_upgrade(ops_test, charm):
     await model.block_until(
         lambda: "gatekeeper-controller-manager" in model.applications, timeout=60
     )
-    await model.wait_for_idle(status="active")
+    async with fast_forward(ops_test, interval="30s"):
+        await model.wait_for_idle(status="active")

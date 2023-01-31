@@ -146,7 +146,7 @@ class TestPolicies:
         )
         res = yaml.full_load(res[1])[unit.tag]
         violations = json.loads(res["results"]["constraint-violations"])
-        assert len(violations) == 2
+        assert len(violations) == 2, json.dumps(violations, indent=2)
         assert any(
             v
             == {
@@ -286,4 +286,5 @@ async def test_upgrade(ops_test, charm):
     await model.block_until(
         lambda: "gatekeeper-audit" in model.applications, timeout=60
     )
-    await model.wait_for_idle(status="active")
+    async with fast_forward(ops_test, interval="5s"):
+        await model.wait_for_idle(status="active")
