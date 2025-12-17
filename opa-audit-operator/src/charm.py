@@ -306,7 +306,7 @@ class OPAAuditCharm(CharmBase):
 
         patch = {"spec": {"template": {"spec": pod_spec_patch}}}
         self.client.patch(
-            StatefulSet, name=self.meta.name, namespace=self.model.name, obj=patch
+            StatefulSet, name=self.app.name, namespace=self.model.name, obj=patch
         )
 
 
