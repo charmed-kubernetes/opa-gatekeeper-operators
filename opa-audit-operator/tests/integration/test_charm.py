@@ -135,17 +135,9 @@ class TestPolicies:
     async def test_list_no_violations(self, ops_test):
         """This will run before the resources have been audited"""
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
-            "list-violations",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
-        )
-        res = yaml.full_load(res[1])[unit.tag]
-        violations = json.loads(res["results"]["constraint-violations"])
+        action = await unit.run_action("list-violations")
+        res = await action.wait()
+        violations = yaml.safe_load(res.results["constraint-violations"])
         assert len(violations) == 2, json.dumps(violations, indent=2)
         assert any(
             v
@@ -191,18 +183,11 @@ class TestPolicies:
 
     async def test_list_violations(self, ops_test):
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
-            "list-violations",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
-        )
-        res = yaml.full_load(res[1])[unit.tag]
-        violations = json.loads(res["results"]["constraint-violations"])
-        assert res["status"] == "completed"
+        action = await unit.run_action("list-violations")
+        res = await action.wait()
+        violations = yaml.safe_load(res.results["constraint-violations"])
+
+        assert res.status == "completed"
         assert len(violations) == 2
         assert any(
             violation["constraint"] == "ns-must-have-gk"
@@ -228,21 +213,19 @@ class TestPolicies:
         }
 
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
+        action = await unit.run_action(
             "get-violation",
-            "constraint-template=K8sRequiredLabels",
-            "constraint=ns-must-have-gk",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
+            **{
+                "constraint-template": "K8sRequiredLabels",
+                "constraint": "ns-must-have-gk",
+            },
         )
-        res = yaml.full_load(res[1])[unit.tag]
-        violations = json.loads(res["results"]["violations"])
-        assert res["status"] == "completed"
-        assert any(v == expected_model_violation for v in violations)
+        res = await action.wait()
+        violations = yaml.safe_load(res.results["violations"])
+        assert res.status == "completed"
+        assert any(v == expected_model_violation for v in violations), json.dumps(
+            violations, indent=2
+        )
 
     async def test_reconciliation_required(self, ops_test, client):
         model = ops_test.model
@@ -254,18 +237,9 @@ class TestPolicies:
             )
 
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
-            "reconcile-resources",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
-        )
-
-        res = yaml.full_load(res[1])[unit.tag]
-        assert res["status"] == "completed"
+        action = await unit.run_action("reconcile-resources")
+        res = await action.wait()
+        assert res.status == "completed"
         await model.wait_for_idle(
             apps=["gatekeeper-audit"], status="active", timeout=60
         )

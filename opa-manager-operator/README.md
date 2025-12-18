@@ -37,7 +37,7 @@ Existing namespaces are not affected by this.
 ### Getting policies
 To list all the policies that are currently applied run:
 ```
-juju run-action {unit_name} list-constraints --wait
+juju run {unit_name} list-constraints --wait
 ```
 
 ## Developing
