@@ -4,7 +4,7 @@ on: [pull_request]
 jobs:
   call-inclusive-naming-check:
     name: Inclusive naming
-    uses: canonical-web-and-design/Inclusive-naming/.github/workflows/woke.yaml@main
+    uses: canonical/inclusive-naming/.github/workflows/woke.yaml@main
     with:
       fail-on-error: "true"
 
@@ -14,28 +14,28 @@ jobs:
     needs:
       - call-inclusive-naming-check
     with:
-      python: "['3.8', '3.9', '3.10']"
+      python: "['3.10', '3.12']"
 
   integration-test:
     name: Integration tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs:
       - lint-unit
     steps:
     - name: Check out code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Setup Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v6
       with:
-        python-version: 3.8
+        python-version: 3.12
     - name: Install Dependencies
       run: |
         pip install tox
     - name: Setup operator environment
       uses: charmed-kubernetes/actions-operator@main
       with:
-          provider: microk8s
-          channel: 1.26/stable
+        provider: microk8s
+        channel: 1.34-strict/stable
     - name: Run test
       run: tox -e integration
     - name: Setup Debug Artifact Collection
@@ -50,7 +50,7 @@ jobs:
       run: sudo juju debug-log --replay --no-tail -i gatekeeper-manager-operator | tee tmp/unit-gatekeeper-manager-operator-0.log
     - name: Upload debug artifacts
       if: ${{ failure() }}
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: test-run-artifacts
         path: tmp
