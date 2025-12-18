@@ -124,18 +124,10 @@ def policies(client):
 class TestPolicies:
     async def test_list_constraints(self, ops_test):
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
-            "list-constraints",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
-        )
-        res = yaml.full_load(res[1])[unit.tag]
-        assert res["status"] == "completed"
-        assert res["results"] == {"k8srequiredlabels": "ns-must-have-gk"}
+        action = await unit.run_action("list-constraints")
+        res = await action.wait()
+        assert res.status == "completed"
+        assert res.results["k8srequiredlabels"] == "ns-must-have-gk"
 
     def test_policy_is_enforced(self, client):
         # We test whether the policy is being enforced after we test the list
@@ -176,18 +168,10 @@ class TestPolicies:
             )
 
         unit = list(ops_test.model.units.values())[0]
-        unit_name = unit.name
-        res = await ops_test.juju(
-            "run-action",
-            unit_name,
-            "reconcile-resources",
-            "--wait",
-            "-m",
-            ops_test.model.info.name,
-        )
+        action = await unit.run_action("reconcile-resources")
+        res = await action.wait()
 
-        res = yaml.full_load(res[1])[unit.tag]
-        assert res["status"] == "completed"
+        assert res.status == "completed"
         async with fast_forward(ops_test, interval="5s"):
             await model.wait_for_idle(
                 apps=["gatekeeper-controller-manager"], status="active", timeout=60
