@@ -37,18 +37,18 @@ there are multiple ways to gather the audit results. The opa-audit-operator prov
 to make it easier.
 Any namespaces violating a constraint can be listed using the `get-violation` action, e.g. for the constraint described above:
 ```
-juju run-action gatekeeper-audit/0 get-violation constraint-template=K8sRequiredLabels constraint=ns-must-have-gk --wait
+juju run gatekeeper-audit/0 get-violation constraint-template=K8sRequiredLabels constraint=ns-must-have-gk --wait
 ```
 
 To see how many resources violate each policy you need to run:
 ```
-juju run-action gatekeeper-audit/0 list-violations --wait
+juju run gatekeeper-audit/0 list-violations --wait
 ```
 
 ### List policies
 To list all the policies that are currently applied run:
 ```
-juju run-action {unit_name} list-constraints --wait
+juju run {unit_name} list-constraints --wait
 ```
 
 ## Developing

@@ -160,7 +160,7 @@ class OPAManagerCharm(CharmBase):
         elif self.manifests.resources != self.manifests.installed_resources():
             self.unit.status = BlockedStatus(
                 "Missing resources, to reconcile run: "
-                "`juju run-action {unit_name} reconcile-resources`"
+                f"`juju run {self.unit.name} reconcile-resources`"
             )
         elif unready := self.collector.unready:
             # Wait for all installed resource to be ready
