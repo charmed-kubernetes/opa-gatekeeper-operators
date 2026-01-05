@@ -9,7 +9,6 @@ bases:
       channel: "22.04"
       architectures:
         - amd64
-        - arm
         - arm64
 parts:
   charm:
